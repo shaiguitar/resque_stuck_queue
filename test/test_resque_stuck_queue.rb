@@ -10,7 +10,7 @@ require 'resque_stuck_queue'
 class TestResqueStuckQueue < Minitest::Test
 
   def teardown
-    puts 'trear'
+    puts 'teardown'
     Resque::StuckQueue.unstub(:has_been_used?)
     Resque::StuckQueue.unstub(:read_from_redis)
   end
@@ -20,8 +20,8 @@ class TestResqueStuckQueue < Minitest::Test
     # clean previous test runs
     Resque.redis.flushall
     Resque.mock!
-    Resque::StuckQueue.config[:wait_period]   = 1 # seconds
-    Resque::StuckQueue.config[:max_wait_time] = 2
+    Resque::StuckQueue.config[:heartbeat]   = 1 # seconds
+    Resque::StuckQueue.config[:trigger_timeout] = 2
     Resque::StuckQueue.config[:abort_on_exception] = true
   end
 
@@ -40,7 +40,7 @@ class TestResqueStuckQueue < Minitest::Test
     Resque::StuckQueue.stubs(:has_been_used?).returns(nil)
     Resque::StuckQueue.stubs(:read_from_redis).returns(nil)
     @triggered = false
-    Resque::StuckQueue.config[:default_handler] = proc { @triggered = true }
+    Resque::StuckQueue.config[:handler] = proc { @triggered = true }
     start_and_stop_loops_after(2)
     assert_equal false, @triggered # "handler should not be called"
   end
@@ -53,7 +53,7 @@ class TestResqueStuckQueue < Minitest::Test
     Resque::StuckQueue.stubs(:read_from_redis).returns(nil)
 
     @triggered = false
-    Resque::StuckQueue.config[:default_handler] = proc { @triggered = true }
+    Resque::StuckQueue.config[:handler] = proc { @triggered = true }
     start_and_stop_loops_after(2)
     assert_equal true, @triggered # "handler should be called"
   end
@@ -77,17 +77,17 @@ class TestResqueStuckQueue < Minitest::Test
     puts '5'
     Resque::StuckQueue.stubs(:read_from_redis).returns(Time.now.to_i)
     @triggered = false
-    Resque::StuckQueue.config[:default_handler] = proc { @triggered = true }
+    Resque::StuckQueue.config[:handler] = proc { @triggered = true }
     start_and_stop_loops_after(2)
     assert_equal false, @triggered # "handler should not be called"
   end
 
-  def test_it_triggers_handler_if_over_max_wait_time
+  def test_it_triggers_handler_if_over_trigger_timeout
     puts '6'
-    last_time_too_old = Time.now.to_i - Resque::StuckQueue::MAX_WAIT_TIME
+    last_time_too_old = Time.now.to_i - Resque::StuckQueue::TRIGGER_TIMEOUT
     Resque::StuckQueue.stubs(:read_from_redis).returns(last_time_too_old.to_s)
     @triggered = false
-    Resque::StuckQueue.config[:default_handler] = proc { @triggered = true }
+    Resque::StuckQueue.config[:handler] = proc { @triggered = true }
     start_and_stop_loops_after(2)
     assert_equal true, @triggered # "handler should be called"
   end
@@ -96,8 +96,8 @@ class TestResqueStuckQueue < Minitest::Test
 
   def start_and_stop_loops_after(secs)
     ops = []
-    ops << Thread.new { Resque::StuckQueue.start! }
-    ops << Thread.new { sleep secs; Resque::StuckQueue.stop! }
+    ops << Thread.new { Resque::StuckQueue.start }
+    ops << Thread.new { sleep secs; Resque::StuckQueue.stop }
     ops.map(&:join)
   end
 

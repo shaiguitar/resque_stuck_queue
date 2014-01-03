@@ -3,22 +3,22 @@ require 'resque'
 module Resque
   module StuckQueue
 
-    GLOBAL_KEY      = "resque-stuck-queue"
-    VERIFIED_KEY    = "resque-stuck-queue-ran-once"
-    WAIT_PERIOD     = 5 * 60 # 5 mins
-    MAX_WAIT_TIME   = 10 * 60
-    DEFAULT_HANDLER = proc { puts 'you need to be notified' }
+    GLOBAL_KEY        = "resque-stuck-queue"
+    VERIFIED_KEY      = "resque-stuck-queue-ran-once"
+    HEARTBEAT      = 60 * 60 # check/refresh every hour
+    TRIGGER_TIMEOUT   = 5 * 60 * 60 # warn/trigger 5 hours
+    HANDLER           = proc { $stderr.puts("Shit gone bad with them queues.") }
 
     class << self
 
       attr_accessor :config
 
       # # how often we refresh the key
-      # :wait_period  = 5 * 60
+      # :heartbeat  = 5 * 60
       #
-      # # this could just be :wait_period but it's possible there's an acceptable lag/bottleneck 
+      # # this could just be :heartbeat but it's possible there's an acceptable lag/bottleneck
       # # in the queue that we want to allow to be before we think it's bad.
-      # :max_wait_time = 10 * 60
+      # :trigger_timeout = 10 * 60
       #
       # # The global key that will be used to check the latest time
       # :global_key  = "resque-stuck-queue"
@@ -27,32 +27,56 @@ module Resque
       # :abort_on_exception 
       #
       # # default handler
-      # config[:default_handler] = proc { send_mail }
+      # config[:handler] = proc { send_mail }
       def config
         @config ||= {}
       end
 
-      # call this after setting @config. once started you should't be allowed to modify it
-      def start!
+      def start_in_background
+        Thread.new do
+          self.start
+        end
+      end
+
+      def stop_in_background
+        Thread.new do
+          self.start
+        end
+      end
+
+      def force_stop!
+        @threads.map(&:kill)
+      end
+
+      # call this after setting config. once started you should't be allowed to modify it
+      def start
         @running = true
+        @stopped = false
         @threads = []
-        @config.freeze
+        config.freeze
 
         mark_first_use
 
-        Thread.abort_on_exception = @config[:abort_on_exception]
+        Thread.abort_on_exception = config[:abort_on_exception]
 
         enqueue_repeating_refresh_job
         setup_checker_thread
 
         # fo-eva.
         @threads.map(&:join)
+
+        @stopped = true
       end
 
       # for tests
-      def stop!
-        @config = @config.dup #unfreeze
+      def stop
+        @config = config.dup #unfreeze
         @running = false
+
+        # wait for clean thread shutdown
+        while @stopped == false
+          sleep 1
+        end
       end
 
       private
@@ -92,7 +116,7 @@ module Resque
       end
 
       def trigger_handler
-        (@config[:default_handler] || DEFAULT_HANDLER).call
+        (config[:handler] || HANDLER).call
       end
 
       def read_from_redis
@@ -108,15 +132,15 @@ module Resque
       end
 
       def wait_for_it
-        sleep @config[:wait_period] || WAIT_PERIOD
+        sleep config[:heartbeat] || HEARTBEAT
       end
 
       def global_key
-        @config[:global_key] || GLOBAL_KEY
+        config[:global_key] || GLOBAL_KEY
       end
 
       def max_wait_time
-        @config[:max_wait_time] || MAX_WAIT_TIME
+        config[:trigger_timeout] || TRIGGER_TIMEOUT
       end
     end
   end
@@ -129,7 +153,3 @@ class RefreshLatestTimestamp
     Resque.redis.set(timestamp_key, Time.now.to_i)
   end
 end
-
-
-
-

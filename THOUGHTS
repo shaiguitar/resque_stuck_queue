@@ -18,4 +18,4 @@ reproduce the error and integrate test like that
 
 ## TODOS
 
-fix default_handler
+verify @config options, raise if no handler, etc.

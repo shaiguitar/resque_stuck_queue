@@ -1,5 +1,9 @@
+require 'rake/testtask'
 
-task :default => 'resque:setup'
+task :default => :test
+Rake::TestTask.new do |t|
+  t.pattern = "test/test_*rb"
+end
 
 require 'resque/tasks'
 
