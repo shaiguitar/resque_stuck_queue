@@ -74,7 +74,7 @@ module Resque
         @threads << Thread.new do
           while @running
             wait_for_it
-            if Time.now.to_i - last_time_worked > (max_wait_time)
+            if Time.now.to_i - last_time_worked > max_wait_time
               trigger_handler
             end
           end
@@ -83,7 +83,7 @@ module Resque
 
       def last_time_worked
         time_set = read_from_redis
-        if first_job_ran_ever? && time_set.nil?
+        if has_been_used? && time_set.nil?
           # if the first job ran, the redis key should always be set
           # possible cases are (1) redis data wonky (2) resque jobs don't get run
           trigger_handler
@@ -99,7 +99,7 @@ module Resque
         Resque.redis.get(global_key)
       end
 
-      def first_job_ran_ever?
+      def has_been_used?
         Resque.redis.get(VERIFIED_KEY)
       end
 

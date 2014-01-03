@@ -11,7 +11,7 @@ class TestResqueStuckQueue < Minitest::Test
 
   def teardown
     puts 'trear'
-    Resque::StuckQueue.unstub(:first_job_ran_ever?)
+    Resque::StuckQueue.unstub(:has_been_used?)
     Resque::StuckQueue.unstub(:read_from_redis)
   end
 
@@ -37,7 +37,7 @@ class TestResqueStuckQueue < Minitest::Test
     puts '1'
 
     # lib never ran, and key is not there
-    Resque::StuckQueue.stubs(:first_job_ran_ever?).returns(nil)
+    Resque::StuckQueue.stubs(:has_been_used?).returns(nil)
     Resque::StuckQueue.stubs(:read_from_redis).returns(nil)
     @triggered = false
     Resque::StuckQueue.config[:default_handler] = proc { @triggered = true }
@@ -49,7 +49,7 @@ class TestResqueStuckQueue < Minitest::Test
 
     puts '2'
     # lib already ran, but key is not there
-    Resque::StuckQueue.stubs(:first_job_ran_ever?).returns(true)
+    Resque::StuckQueue.stubs(:has_been_used?).returns(true)
     Resque::StuckQueue.stubs(:read_from_redis).returns(nil)
 
     @triggered = false
