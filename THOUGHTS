@@ -15,3 +15,7 @@ redis scenario
   Thing.enqueue_repeating_refresh_job
 
 reproduce the error and integrate test like that
+
+## TODOS
+
+fix default_handler

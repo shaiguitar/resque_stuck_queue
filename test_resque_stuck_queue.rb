@@ -73,6 +73,25 @@ class TestResqueStuckQueue < Minitest::Test
     refute_nil Resque.redis.get(Resque::StuckQueue::VERIFIED_KEY), "should set verified key after used"
   end
 
+  def test_it_does_not_trigger_handler_if_under_max_time
+    puts '5'
+    Resque::StuckQueue.stubs(:read_from_redis).returns(Time.now.to_i)
+    @triggered = false
+    Resque::StuckQueue.config[:default_handler] = proc { @triggered = true }
+    start_and_stop_loops_after(2)
+    assert_equal false, @triggered # "handler should not be called"
+  end
+
+  def test_it_triggers_handler_if_over_max_wait_time
+    puts '6'
+    last_time_too_old = Time.now.to_i - Resque::StuckQueue::MAX_WAIT_TIME
+    Resque::StuckQueue.stubs(:read_from_redis).returns(last_time_too_old.to_s)
+    @triggered = false
+    Resque::StuckQueue.config[:default_handler] = proc { @triggered = true }
+    start_and_stop_loops_after(2)
+    assert_equal true, @triggered # "handler should be called"
+  end
+
   private
 
   def start_and_stop_loops_after(secs)
