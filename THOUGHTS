@@ -19,3 +19,5 @@ reproduce the error and integrate test like that
 ## TODOS
 
 verify @config options, raise if no handler, etc.
+
+use locks to only notify/trigger once in case this is used in a server-cluster type environment adn you only want the handler triggered once
