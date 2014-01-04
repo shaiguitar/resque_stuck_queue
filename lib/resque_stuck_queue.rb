@@ -1,3 +1,6 @@
+require "resque_stuck_queue/version"
+
+# TODO move this require into a configurable?
 require 'resque'
 
 module Resque
@@ -44,10 +47,6 @@ module Resque
         end
       end
 
-      def force_stop!
-        @threads.map(&:kill)
-      end
-
       # call this after setting config. once started you should't be allowed to modify it
       def start
         @running = true
@@ -77,6 +76,10 @@ module Resque
         while @stopped == false
           sleep 1
         end
+      end
+
+      def force_stop!
+        @threads.map(&:kill)
       end
 
       private
@@ -148,7 +151,6 @@ end
 
 class RefreshLatestTimestamp
   @queue = :app
-
   def self.perform(timestamp_key)
     Resque.redis.set(timestamp_key, Time.now.to_i)
   end
