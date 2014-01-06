@@ -39,6 +39,10 @@ Resque::StuckQueue.config[:global_key] = "name-the-refresh-key-as-you-please"
 
 # optional, if you want the resque-stuck-queue threads to explicitly raise, default is false
 Resque::StuckQueue.config[:abort_on_exception] = true
+
+# optional, pass a logger. Default a ruby logger will be instantiated. Needs to respond to that interface.
+Resque::StuckQueue.config[:logger] = Logger.new($stdout)
+
 </pre>
 
 Then start it:

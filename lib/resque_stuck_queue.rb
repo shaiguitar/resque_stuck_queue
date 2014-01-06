@@ -7,13 +7,15 @@ Redis::Classy.db = Resque.redis
 # TODO move this require into a configurable?
 require 'resque'
 
+require 'logger'
+
 module Resque
   module StuckQueue
 
     GLOBAL_KEY        = "resque-stuck-queue"
     HEARTBEAT         = 60 * 60 # check/refresh every hour
     TRIGGER_TIMEOUT   = 5 * 60 * 60 # warn/trigger 5 hours
-    HANDLER           = proc { $stderr.puts("Shit gone bad with them queues.") }
+    HANDLER           = proc { $stdout.puts("Shit gone bad with them queues.") }
 
     class << self
 
@@ -36,6 +38,10 @@ module Resque
       # config[:handler] = proc { send_mail }
       def config
         @config ||= {}
+      end
+
+      def logger
+        @logger ||= (config[:logger] || Logger.new($stdout))
       end
 
       def start_in_background
@@ -65,34 +71,44 @@ module Resque
         # fo-eva.
         @threads.map(&:join)
 
+        logger.info("threads stopped")
         @stopped = true
       end
 
-      # for tests
       def stop
-        @config = config.dup #unfreeze
-        @running = false
-
+        reset!
         # wait for clean thread shutdown
         while @stopped == false
           sleep 1
         end
+        logger.info("Stopped")
       end
 
       def force_stop!
         @threads.map(&:kill)
+        reset!
+        logger.info("Force stopped")
+      end
+
+      def reset!
+        # clean state so we can stop and start in the same process.
+        @config = config.dup #unfreeze
+        @logger = nil
+        @running = false
       end
 
       private
 
       def enqueue_repeating_refresh_job
         @threads << Thread.new do
+          logger.info("Starting heartbeat thread")
           while @running
             wait_for_it
             # we want to go through resque jobs, because that's what we're trying to test here:
             # ensure that jobs get executed and the time is updated!
             #
             # TODO REDIS 2.0 compat
+            logger.info("Sending refresh job")
             Resque.enqueue(RefreshLatestTimestamp, global_key)
           end
         end
@@ -100,12 +116,14 @@ module Resque
 
       def setup_checker_thread
         @threads << Thread.new do
+          logger.info("Starting checker thread")
           while @running
             wait_for_it
             mutex = Redis::Mutex.new('resque_stuck_queue_lock', block: 0)
             if mutex.lock
               begin
                 if Time.now.to_i - last_time_worked > max_wait_time
+                  logger.info("Triggering handler at #{Time.now} (pid: #{Process.pid})")
                   trigger_handler
                 end
               ensure

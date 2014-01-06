@@ -28,4 +28,5 @@ verify @config options, raise if no handler, etc.
 - ensure it only runs from the server box and not the resque box??
   (the deploy restarts the server but not resque workers)
 
-
+add a 'resque_stuck_queue/tasks' bit? See tres eg
+require 'resque/stuck_queue' instead?
