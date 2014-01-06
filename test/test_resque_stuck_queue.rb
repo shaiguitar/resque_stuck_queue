@@ -49,5 +49,20 @@ class TestResqueStuckQueue < Minitest::Test
     assert_equal true, @triggered # "handler should be called"
   end
 
+  def test_stops_if_handler_raises
+    puts "#{__method__}"
+    Resque::StuckQueue.config[:trigger_timeout] = 1
+    last_time_too_old = Time.now.to_i - Resque::StuckQueue::TRIGGER_TIMEOUT
+    Resque::StuckQueue.stubs(:read_from_redis).returns(last_time_too_old.to_s) # enforce trigger
+    Resque::StuckQueue.config[:handler] = proc { raise "handler had bad sad!" }
+    Thread.new {
+      sleep 3 # should have triggered
+      Thread.current.abort_on_exception = true
+      assert Resque::StuckQueue.stopped?, "should stop stuck_queue if handler raises."
+    }
+    start_and_stop_loops_after(4)
+  end
+
+
 end
 

@@ -46,12 +46,14 @@ module Resque
 
       def start_in_background
         Thread.new do
+          Thread.current.abort_on_exception = config[:abort_on_exception]
           self.start
         end
       end
 
       def stop_in_background
         Thread.new do
+          Thread.current.abort_on_exception = config[:abort_on_exception]
           self.start
         end
       end
@@ -63,7 +65,6 @@ module Resque
         @threads = []
         config.freeze
 
-        Thread.abort_on_exception = config[:abort_on_exception]
 
         enqueue_repeating_refresh_job
         setup_checker_thread
@@ -85,22 +86,27 @@ module Resque
       end
 
       def force_stop!
+        logger.info("Force stopping")
         @threads.map(&:kill)
         reset!
-        logger.info("Force stopped")
       end
 
       def reset!
         # clean state so we can stop and start in the same process.
         @config = config.dup #unfreeze
-        @logger = nil
         @running = false
+        @logger = nil
+      end
+
+      def stopped?
+        @stopped
       end
 
       private
 
       def enqueue_repeating_refresh_job
         @threads << Thread.new do
+          Thread.current.abort_on_exception = config[:abort_on_exception]
           logger.info("Starting heartbeat thread")
           while @running
             # we want to go through resque jobs, because that's what we're trying to test here:
@@ -116,6 +122,7 @@ module Resque
 
       def setup_checker_thread
         @threads << Thread.new do
+          Thread.current.abort_on_exception = config[:abort_on_exception]
           logger.info("Starting checker thread")
           while @running
             mutex = Redis::Mutex.new('resque_stuck_queue_lock', block: 0)
@@ -152,6 +159,9 @@ module Resque
       def trigger_handler
         (config[:handler] || HANDLER).call
         manual_refresh
+      rescue => e
+        logger.info("handler crashed: #{e.inspect}")
+        force_stop!
       end
 
       def read_from_redis
