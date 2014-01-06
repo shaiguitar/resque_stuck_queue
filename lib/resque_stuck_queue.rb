@@ -103,13 +103,13 @@ module Resque
         @threads << Thread.new do
           logger.info("Starting heartbeat thread")
           while @running
-            wait_for_it
             # we want to go through resque jobs, because that's what we're trying to test here:
             # ensure that jobs get executed and the time is updated!
             #
             # TODO REDIS 2.0 compat
             logger.info("Sending refresh job")
             Resque.enqueue(RefreshLatestTimestamp, global_key)
+            wait_for_it
           end
         end
       end
@@ -118,7 +118,6 @@ module Resque
         @threads << Thread.new do
           logger.info("Starting checker thread")
           while @running
-            wait_for_it
             mutex = Redis::Mutex.new('resque_stuck_queue_lock', block: 0)
             if mutex.lock
               begin
@@ -130,6 +129,7 @@ module Resque
                 mutex.unlock
               end
             end
+            wait_for_it
           end
         end
       end
