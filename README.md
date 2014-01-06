@@ -16,8 +16,6 @@ It will trigger a pre-defined proc (see below) if the last time the hearbeat job
 
 ## Usage
 
-Add this to wherever you're setting up resque (config/initializers or wherever).
-
 Configure it first:
 
 <pre>
@@ -56,6 +54,16 @@ Stopping it consists of the same idea:
 Resque::StuckQueue.stop                 # this will block until the threads end their current iteration
 Resque::StuckQueue.force_stop!          # force kill those threads and let's move on
 </pre>
+
+## Deployment/Integration
+
+* Include this in the app in a config initializer of some sort.
+
+Note though, the resque-stuck threads will live alongside the app server process so you will need to explicitely handle `start` _and_ `stop`. If you're deployed in a forking-server environment and the whatever process has this does not get restarted the threads will keep on going indefinitely.
+
+* Run this as a daemon somewhere alongside the app/in your setup.
+
+<!-- TODO example -->
 
 ## Tests
 
