@@ -25,7 +25,7 @@ class TestIntegration < Minitest::Test
   end
 
   def teardown
-    Process.kill("SIGQUIT", @resque_pid)
+   `kill -9 #{@resque_pid}` # CONT falls throughs sometimes? hax, rm this and SIGSTOP/SIGCONT
     Resque::StuckQueue.stop
     Process.waitpid(@resque_pid)
   end
@@ -69,6 +69,7 @@ class TestIntegration < Minitest::Test
     Process.kill("SIGSTOP", @resque_pid) # jic, do not process jobs so we definitely trigger
     Resque.enqueue(SetRedisKey)
     assert_equal Resque.redis.get(SetRedisKey::NAME), nil
+    sleep 2 # allow timeout to trigger
 
     # check handler did get called
     assert_equal @triggered, true

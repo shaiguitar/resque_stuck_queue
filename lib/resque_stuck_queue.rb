@@ -1,5 +1,9 @@
 require "resque_stuck_queue/version"
 
+# TODO rm redis-mutex dep and just do the setnx locking here
+require 'redis-mutex'
+Redis::Classy.db = Resque.redis
+
 # TODO move this require into a configurable?
 require 'resque'
 
@@ -7,8 +11,7 @@ module Resque
   module StuckQueue
 
     GLOBAL_KEY        = "resque-stuck-queue"
-    VERIFIED_KEY      = "resque-stuck-queue-ran-once"
-    HEARTBEAT      = 60 * 60 # check/refresh every hour
+    HEARTBEAT         = 60 * 60 # check/refresh every hour
     TRIGGER_TIMEOUT   = 5 * 60 * 60 # warn/trigger 5 hours
     HANDLER           = proc { $stderr.puts("Shit gone bad with them queues.") }
 
@@ -53,8 +56,6 @@ module Resque
         @stopped = false
         @threads = []
         config.freeze
-
-        mark_first_use
 
         Thread.abort_on_exception = config[:abort_on_exception]
 
@@ -101,8 +102,15 @@ module Resque
         @threads << Thread.new do
           while @running
             wait_for_it
-            if Time.now.to_i - last_time_worked > max_wait_time
-              trigger_handler
+            mutex = Redis::Mutex.new('resque_stuck_queue_lock', block: 0)
+            if mutex.lock
+              begin
+                if Time.now.to_i - last_time_worked > max_wait_time
+                  trigger_handler
+                end
+              ensure
+                mutex.unlock
+              end
             end
           end
         end
@@ -110,28 +118,26 @@ module Resque
 
       def last_time_worked
         time_set = read_from_redis
-        if has_been_used? && time_set.nil?
-          # if the first job ran, the redis key should always be set
-          # possible cases are (1) redis data wonky (2) resque jobs don't get run
-          trigger_handler
-        end
-        (time_set ? time_set : Time.now).to_i # don't trigger again if time is nil
+        if time_set
+          time_set
+        else
+          manual_refresh
+         end.to_i
+      end
+
+      def manual_refresh
+         time = Time.now.to_i
+         Resque.redis.set(global_key, time)
+         time
       end
 
       def trigger_handler
         (config[:handler] || HANDLER).call
+        manual_refresh
       end
 
       def read_from_redis
         Resque.redis.get(global_key)
-      end
-
-      def has_been_used?
-        Resque.redis.get(VERIFIED_KEY)
-      end
-
-      def mark_first_use
-        Resque.redis.set(VERIFIED_KEY, "true")
       end
 
       def wait_for_it
