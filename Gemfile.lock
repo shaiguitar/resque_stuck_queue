@@ -21,6 +21,10 @@ GEM
       rack
     rake (10.1.0)
     redis (3.0.6)
+    redis-classy (1.2.0)
+      redis-namespace (~> 1.0)
+    redis-mutex (2.1.1)
+      redis-classy (~> 1.2)
     redis-namespace (1.4.1)
       redis (~> 3.0.4)
     resque (1.25.1)
@@ -56,6 +60,7 @@ DEPENDENCIES
   mocha
   pry
   rake
+  redis-mutex
   resque
   resque-mock
   resque-scheduler

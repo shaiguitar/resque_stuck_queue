@@ -1,6 +1,12 @@
 require 'rake/testtask'
 
 task :default => :test
+#task :test do
+  ## forking and what not. keep containted in each own process?
+  #Dir['./test/test_*.rb'].each do |file|
+    #system("ruby -I. -I lib/ #{file}")
+  #end
+#end
 Rake::TestTask.new do |t|
   t.pattern = "test/test_*rb"
 end

@@ -31,6 +31,9 @@ Resque::StuckQueue.config[:heartbeat] = 5.minutes
 Resque::StuckQueue.config[:trigger_timeout] = 10.hours
 
 # what gets triggered when resque-stuck-queue will detect the latest heartbeat is older than the trigger_timeout time set above.
+#
+# triggering will update the key, so you'll have to wait the trigger_timeout again 
+# in order for it to trigger again even if workers are still stale.
 Resque::StuckQueue.config[:handler] = proc { send_email }
 
 # optional, in case you want to set your own name for the key that will be used as the last good hearbeat time

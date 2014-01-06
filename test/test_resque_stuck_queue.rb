@@ -1,22 +1,17 @@
-require 'minitest'
-require "minitest/autorun"
-require 'mocha'
-
-require 'resque/mock'
-
-$:.unshift(".")
-require 'resque_stuck_queue'
+require File.join(File.expand_path(File.dirname(__FILE__)), "test_helper")
 
 class TestResqueStuckQueue < Minitest::Test
 
+  include TestHelper
+
   def teardown
-    puts 'teardown'
+    puts "#{__method__}"
     Resque::StuckQueue.unstub(:has_been_used?)
     Resque::StuckQueue.unstub(:read_from_redis)
   end
 
   def setup
-    puts 'setup'
+    puts "#{__method__}"
     # clean previous test runs
     Resque.redis.flushall
     Resque.mock!
@@ -34,7 +29,7 @@ class TestResqueStuckQueue < Minitest::Test
   # this has the unfortunate meaning that if no jobs are *ever* enqueued, this lib won't catch that problem.
   # so we split the funcationaliy to raise if no key is there, unless it's the first time it's being used since being started.
   def test_thread_does_not_trigger_when_no_key_exists_on_first_use
-    puts '1'
+    puts "#{__method__}"
 
     # lib never ran, and key is not there
     Resque::StuckQueue.stubs(:has_been_used?).returns(nil)
@@ -46,8 +41,7 @@ class TestResqueStuckQueue < Minitest::Test
   end
 
   def test_thread_does_trigger_when_no_key_exists_on_any_other_use
-
-    puts '2'
+    puts "#{__method__}"
     # lib already ran, but key is not there
     Resque::StuckQueue.stubs(:has_been_used?).returns(true)
     Resque::StuckQueue.stubs(:read_from_redis).returns(nil)
@@ -59,7 +53,7 @@ class TestResqueStuckQueue < Minitest::Test
   end
 
   def test_configure_global_key
-    puts '3'
+    puts "#{__method__}"
     assert_nil Resque.redis.get("it-is-configurable"), "global key should not be set"
     Resque::StuckQueue.config[:global_key] = "it-is-configurable"
     start_and_stop_loops_after(2)
@@ -67,14 +61,14 @@ class TestResqueStuckQueue < Minitest::Test
   end
 
   def test_it_sets_a_verified_key_to_indicate_first_use
-    puts '4'
+    puts "#{__method__}"
     assert_nil Resque.redis.get(Resque::StuckQueue::VERIFIED_KEY), "should be nil before lib is used"
     start_and_stop_loops_after(2)
     refute_nil Resque.redis.get(Resque::StuckQueue::VERIFIED_KEY), "should set verified key after used"
   end
 
   def test_it_does_not_trigger_handler_if_under_max_time
-    puts '5'
+    puts "#{__method__}"
     Resque::StuckQueue.stubs(:read_from_redis).returns(Time.now.to_i)
     @triggered = false
     Resque::StuckQueue.config[:handler] = proc { @triggered = true }
@@ -83,22 +77,13 @@ class TestResqueStuckQueue < Minitest::Test
   end
 
   def test_it_triggers_handler_if_over_trigger_timeout
-    puts '6'
+    puts "#{__method__}"
     last_time_too_old = Time.now.to_i - Resque::StuckQueue::TRIGGER_TIMEOUT
     Resque::StuckQueue.stubs(:read_from_redis).returns(last_time_too_old.to_s)
     @triggered = false
     Resque::StuckQueue.config[:handler] = proc { @triggered = true }
     start_and_stop_loops_after(2)
     assert_equal true, @triggered # "handler should be called"
-  end
-
-  private
-
-  def start_and_stop_loops_after(secs)
-    ops = []
-    ops << Thread.new { Resque::StuckQueue.start }
-    ops << Thread.new { sleep secs; Resque::StuckQueue.stop }
-    ops.map(&:join)
   end
 
 end

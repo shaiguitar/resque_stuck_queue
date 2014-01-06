@@ -1,6 +1,7 @@
 source 'https://rubygems.org'
 
 gem 'resque'
+gem 'redis-mutex'
 
 # TEST
 gem 'minitest'

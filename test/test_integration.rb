@@ -37,8 +37,7 @@ class TestIntegration < Minitest::Test
   end
 
   def test_resque_enqueues_a_job_does_not_trigger
-
-    puts '1'
+    puts "#{__method__}"
     Resque::StuckQueue.config[:trigger_timeout] = 100 # wait a while so we don't trigger
     Resque::StuckQueue.config[:heartbeat] = 2
     @triggered = false
@@ -57,8 +56,7 @@ class TestIntegration < Minitest::Test
   end
 
   def test_resque_does_not_enqueues_a_job_does_trigger
-
-    puts '2'
+    puts "#{__method__}"
     Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
     Resque::StuckQueue.config[:heartbeat] = 1
     @triggered = false

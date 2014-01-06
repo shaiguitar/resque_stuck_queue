@@ -20,4 +20,12 @@ reproduce the error and integrate test like that
 
 verify @config options, raise if no handler, etc.
 
-use locks to only notify/trigger once in case this is used in a server-cluster type environment adn you only want the handler triggered once
+- use locks to only notify/trigger once in case this is used in a server-cluster type environment adn you only want the handler triggered once
+
+- resque in stuck (t state process) SIGSTOP sticks up the checker thread?
+  or if not running
+
+- ensure it only runs from the server box and not the resque box??
+  (the deploy restarts the server but not resque workers)
+
+
