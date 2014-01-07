@@ -67,7 +67,28 @@ Note though, the resque-stuck threads will live alongside the app server process
 
 * Run this as a daemon somewhere alongside the app/in your setup.
 
-<!-- TODO example -->
+Contrived example:
+
+<pre>
+require 'resque_stuck_queue'
+
+namespace :resque do
+  desc "Start a Resque-stuck daemon"
+  task :stuck_queue do
+
+    Resque::StuckQueue.config[:heartbeat] = 10.minutes
+    Resque::StuckQueue.config[:trigger_timeout] = 1.hour
+    Resque::StuckQueue.config[:handler] = proc { $stderr.puts("resque wonky!") }
+
+    Resque::StuckQueue.start # blocking operation, daemon running
+  end
+end
+
+# then:
+
+$ bundle exec rake --trace resque:stuck_queue
+
+</pre>
 
 ## Tests
 
