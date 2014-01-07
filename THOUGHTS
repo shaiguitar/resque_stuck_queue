@@ -3,30 +3,10 @@ other resources:
   http://vitobotta.com/resque-automatically-kill-stuck-workers-retry-failed-jobs/#sthash.oQsaNeb5.dpbs
   http://stackoverflow.com/questions/10757758/find-out-if-a-resque-job-is-still-running-and-kill-it-if-its-stuck
 
-heartbeat?
-
-redis scenario
-  different processes (cant share state in Resque memory etc.)
-  different boxes! (redis is shared state)
-  if this is included in servers, you have clusters os unicorn/mongrel etc, 
-    ensure it works across multiple running instances of this lib?
-
-  Thing.setup_checker_thread
-  Thing.enqueue_repeating_refresh_job
-
-reproduce the error and integrate test like that
-
 ## TODOS
 
-verify @config options, raise if no handler, etc.
-
-- use locks to only notify/trigger once in case this is used in a server-cluster type environment adn you only want the handler triggered once
-
-- resque in stuck (t state process) SIGSTOP sticks up the checker thread?
-  or if not running
-
-- ensure it only runs from the server box and not the resque box??
-  (the deploy restarts the server but not resque workers)
-
+verifications of @config options: raise if no handler, etc.
+add daemon example to readme
 add a 'resque_stuck_queue/tasks' bit? See tres eg
 require 'resque/stuck_queue' instead?
+ensure the logging gets flushed into log file correctly? (integration with god?)
