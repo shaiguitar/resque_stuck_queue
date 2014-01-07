@@ -15,7 +15,7 @@ class TestCollision < Minitest::Test
     p4 = fork { Resque.redis.client.reconnect; run_resque_stuck_daemon;  }
 
     Thread.new {
-      sleep 5 # let test run and trigger once occur (according to time below)
+      sleep 4 # let test run and trigger once occur (according to time below)
       `kill -9 #{p1}`
       `kill -9 #{p2}`
       `kill -9 #{p3}`

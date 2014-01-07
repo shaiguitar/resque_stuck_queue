@@ -1,8 +1,12 @@
-## Resque stuck queue
+# Resque stuck queue
 
-Ever run into that? Sucks, eh?
+## Why?
 
-This should enable a way to fire some handler when jobs aren't occurring within a certain timeframe.
+This is to be used to satisfy an ops problem. There have been cases resque processes would stop processing jobs for unknown reasons. Other times resque wouldn't be running entirely due to deploy problems architecture/human error issues. Or on a different note, resque could be highly backed up and won't process jobs because it's too busy. This enables gaining a little insight into those issues.
+
+## What is it?
+
+If resque doesn't run jobs within a certain timeframe, it will trigger a pre-defined handler of your choice. You can use this to send an email, pager duty, add more resque workers, restart resque, send you a txt...whatever suits you.
 
 ## How it works
 
@@ -25,12 +29,12 @@ Resque::StuckQueue.config[:heartbeat] = 5.minutes
 # since there is an realistic and acceptable lag for job queues, set this to how much you're
 # willing to accept between the current time and when the last hearbeat job went through.
 #
-# obviously, take the heartbeat into consideration when setting this
+# take the heartbeat into consideration when setting this (it will fire 10 hours + 5 minutes with above heartbeat).
 Resque::StuckQueue.config[:trigger_timeout] = 10.hours
 
 # what gets triggered when resque-stuck-queue will detect the latest heartbeat is older than the trigger_timeout time set above.
 #
-# triggering will update the key, so you'll have to wait the trigger_timeout again 
+# triggering will update the key, so you'll have to wait the trigger_timeout again
 # in order for it to trigger again even if workers are still stale.
 Resque::StuckQueue.config[:handler] = proc { send_email }
 
@@ -70,6 +74,9 @@ Note though, the resque-stuck threads will live alongside the app server process
 Contrived example:
 
 <pre>
+
+# put this in lib/tasks/resque_stuck_queue.rb
+
 require 'resque_stuck_queue'
 
 namespace :resque do
@@ -87,6 +94,8 @@ end
 # then:
 
 $ bundle exec rake --trace resque:stuck_queue
+
+# you can run this under god for example @ https://gist.github.com/shaiguitar/298935953d91faa6bd4e
 
 </pre>
 
