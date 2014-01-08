@@ -51,13 +51,6 @@ module Resque
         end
       end
 
-      def stop_in_background
-        Thread.new do
-          Thread.current.abort_on_exception = config[:abort_on_exception]
-          self.start
-        end
-      end
-
       # call this after setting config. once started you should't be allowed to modify it
       def start
         @running = true
