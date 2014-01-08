@@ -77,7 +77,7 @@ Contrived example:
 
 # put this in lib/tasks/resque_stuck_queue.rb
 
-require 'resque_stuck_queue'
+require 'resque_stuck_queue' # or require 'resque/stuck_queue'
 
 namespace :resque do
   desc "Start a Resque-stuck daemon"
