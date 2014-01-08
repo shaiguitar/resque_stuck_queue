@@ -1,11 +1,11 @@
 require "resque_stuck_queue/version"
 
+# TODO move this require into a configurable?
+require 'resque'
+
 # TODO rm redis-mutex dep and just do the setnx locking here
 require 'redis-mutex'
 Redis::Classy.db = Resque.redis
-
-# TODO move this require into a configurable?
-require 'resque'
 
 require 'logger'
 
