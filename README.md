@@ -99,6 +99,18 @@ $ bundle exec rake --trace resque:stuck_queue
 
 </pre>
 
+## Sidekiq/Other job queues
+
+If you have trouble with other queues the ideas here can be applied there. The only difference would be to swap out the method of enqueing the refresh job. The rough idea would be swap:
+
+`Resque.enqueue(RefreshLatestTimestamp, global_key)`
+
+With:
+
+`Sidekiq::Client.enqueue(RefreshLatestTimestamp, 'bob', 1) # or however you enque that job`
+
+The idea holds.
+
 ## Tests
 
 Run the tests:
