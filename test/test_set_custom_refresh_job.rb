@@ -8,10 +8,13 @@ class TestYourOwnRefreshJob < Minitest::Test
     Resque::StuckQueue.config[:trigger_timeout] = 1
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
+    Resque::StuckQueue.config[:refresh_job] = nil
+    Resque.redis.flushall
   end
 
   def teardown
     Resque::StuckQueue.reset!
+    Resque::StuckQueue.config.clear
   end
 
   def test_will_trigger_with_unrefreshing_custom_heartbeat_job 
@@ -34,21 +37,6 @@ class TestYourOwnRefreshJob < Minitest::Test
       assert false, "should not succeed with bad refresh_job"
     rescue
       assert true, "will fail with bad refresh_job"
-    end
-  end
-
-
-  def test_has_settable_custom_hearbeat_job
-    puts "#{__method__}"
-    begin
-      Resque::StuckQueue.config[:refresh_job] = proc { Resque.enqueue(RefreshLatestTimestamp, Resque::StuckQueue.global_key) }
-      @triggered = false
-      Resque::StuckQueue.config[:handler] = proc { @triggered = true }
-      start_and_stop_loops_after(3)
-      assert true, "should not have raised"
-      assert @triggered, "should have triggered"
-    rescue => e
-      assert false, "should have succeeded with good refresh_job.\n #{e.inspect}"
     end
   end
 

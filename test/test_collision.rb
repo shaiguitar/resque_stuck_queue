@@ -4,6 +4,10 @@ class TestCollision < Minitest::Test
 
   include TestHelper
 
+  def setup
+    Resque.redis.flushall
+  end
+
   def test_two_processes_interacting
     puts "#{__method__}"
     # no resque should be running here so timeouts will be reached + trigger
@@ -15,7 +19,7 @@ class TestCollision < Minitest::Test
     p4 = fork { Resque.redis.client.reconnect; run_resque_stuck_daemon;  }
 
     Thread.new {
-      sleep 4 # let test run and trigger once occur (according to time below)
+      sleep 5 # let test run and trigger once occur (according to time below)
       `kill -9 #{p1}`
       `kill -9 #{p2}`
       `kill -9 #{p3}`

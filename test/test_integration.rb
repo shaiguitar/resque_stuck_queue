@@ -78,5 +78,24 @@ class TestIntegration < Minitest::Test
     Process.kill("SIGCONT", @resque_pid)
   end
 
+  def test_has_settable_custom_hearbeat_job
+    puts "#{__method__}"
+    Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
+    Resque::StuckQueue.config[:heartbeat] = 1
+
+    begin
+      Resque::StuckQueue.config[:refresh_job] = proc { Resque.enqueue(RefreshLatestTimestamp, Resque::StuckQueue.global_key) }
+      @triggered = false
+      Resque::StuckQueue.config[:handler] = proc { @triggered = true }
+      Thread.new { Resque::StuckQueue.start }
+
+      @resque_pid = run_resque
+      sleep 3 # allow trigger
+      assert true, "should not have raised"
+      assert @triggered, "should have triggered"
+    rescue => e
+      assert false, "should have succeeded with good refresh_job.\n #{e.inspect}"
+    end
+  end
 
 end
