@@ -13,7 +13,6 @@ class TestResqueStuckQueue < Minitest::Test
     puts "#{__method__}"
     # clean previous test runs
     Resque.redis.flushall
-    Resque.mock!
     Resque::StuckQueue.config[:heartbeat]   = 1 # seconds
     Resque::StuckQueue.config[:abort_on_exception] = true
   end
