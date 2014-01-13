@@ -99,17 +99,25 @@ $ bundle exec rake --trace resque:stuck_queue
 
 </pre>
 
-## Sidekiq/Other job queues
+## Sidekiq/Other redis-based job queues
 
-If you have trouble with other queues the ideas here can be applied there. The only difference would be to swap out the method of enqueing the refresh job. The rough idea would be swap:
+If you have trouble with other queues you can use this lib by setting your own custom refresh job (aka, the job that refreshes the global_key). The one thing you need to take care of is ensure whatever and however you enque your own custom job, it sets the global_key to Time.now. Then do:
 
-`Resque.enqueue(RefreshLatestTimestamp, global_key)`
+<pre>
 
-With:
+class CustomJob
+  include Sidekiq::Worker
+  def perform
+    # ensure you're setting the key in the redis the job queue is using
+    $redis.set(Resque::StuckQueue.global_key, Time.now.to_i)
+  end
+end
 
-`Sidekiq::Client.enqueue(RefreshLatestTimestamp, 'bob', 1) # or however you enque that job`
-
-The idea holds.
+Resque::StuckQueue.config[:refresh_job] = proc {
+  # or however else you enque your custom job, Sidekiq::Client.enqueue(CustomJob), whatever, etc.
+  CustomJob.perform_async
+}
+</pre>
 
 ## Tests
 

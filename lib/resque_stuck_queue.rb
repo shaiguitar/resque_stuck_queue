@@ -95,6 +95,11 @@ module Resque
         @stopped
       end
 
+      def global_key
+        # public, for use in custom heartbeat job
+        config[:global_key] || GLOBAL_KEY
+      end
+
       private
 
       def enqueue_repeating_refresh_job
@@ -107,9 +112,17 @@ module Resque
             #
             # TODO REDIS 2.0 compat
             logger.info("Sending refresh job")
-            Resque.enqueue(RefreshLatestTimestamp, global_key)
+            enqueue_job
             wait_for_it
           end
+        end
+      end
+
+      def enqueue_job
+        if config[:refresh_job]
+          config[:refresh_job].call
+        else
+          Resque.enqueue(RefreshLatestTimestamp, global_key)
         end
       end
 
@@ -163,10 +176,6 @@ module Resque
 
       def wait_for_it
         sleep config[:heartbeat] || HEARTBEAT
-      end
-
-      def global_key
-        config[:global_key] || GLOBAL_KEY
       end
 
       def max_wait_time
