@@ -194,8 +194,8 @@ class RefreshLatestTimestamp
   @queue = :app
   def self.perform(args)
     timestamp_key = args[0]
-    host = args[1] || "localhost"
-    port = args[2] || "6379"
+    host = args[1]
+    port = args[2]
     r = Redis.new(:host => host, :port => port)
     r.set(timestamp_key, Time.now.to_i)
   end
