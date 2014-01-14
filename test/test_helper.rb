@@ -2,6 +2,8 @@ require 'minitest'
 require "minitest/autorun"
 require 'pry'
 require 'mocha'
+require "minitest/unit"
+require "mocha/mini_test"
 $:.unshift(".")
 require 'resque_stuck_queue'
 require File.join(File.expand_path(File.dirname(__FILE__)), "resque", "set_redis_key")
