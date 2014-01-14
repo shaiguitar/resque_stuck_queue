@@ -5,7 +5,6 @@ require 'resque'
 
 # TODO rm redis-mutex dep and just do the setnx locking here
 require 'redis-mutex'
-Redis::Classy.db = Resque.redis
 
 require 'logger'
 
@@ -36,12 +35,19 @@ module Resque
       #
       # # default handler
       # config[:handler] = proc { send_mail }
+      #
+      # # explicit redis
+      # config[:redis] = Redis.new
       def config
         @config ||= {}
       end
 
       def logger
         @logger ||= (config[:logger] || Logger.new($stdout))
+      end
+
+      def redis
+        @redis ||= (config[:redis] || Resque.redis)
       end
 
       def start_in_background
@@ -58,6 +64,7 @@ module Resque
         @threads = []
         config.freeze
 
+        Redis::Classy.db = redis if Redis::Classy.db.nil?
 
         enqueue_repeating_refresh_job
         setup_checker_thread
@@ -109,8 +116,6 @@ module Resque
           while @running
             # we want to go through resque jobs, because that's what we're trying to test here:
             # ensure that jobs get executed and the time is updated!
-            #
-            # TODO REDIS 2.0 compat
             logger.info("Sending refresh job")
             enqueue_job
             wait_for_it
@@ -122,7 +127,7 @@ module Resque
         if config[:refresh_job]
           config[:refresh_job].call
         else
-          Resque.enqueue(RefreshLatestTimestamp, global_key)
+          Resque.enqueue(RefreshLatestTimestamp, [global_key, redis.client.host, redis.client.port])
         end
       end
 
@@ -158,7 +163,7 @@ module Resque
 
       def manual_refresh
          time = Time.now.to_i
-         Resque.redis.set(global_key, time)
+         redis.set(global_key, time)
          time
       end
 
@@ -171,7 +176,7 @@ module Resque
       end
 
       def read_from_redis
-        Resque.redis.get(global_key)
+        redis.get(global_key)
       end
 
       def wait_for_it
@@ -187,7 +192,11 @@ end
 
 class RefreshLatestTimestamp
   @queue = :app
-  def self.perform(timestamp_key)
-    Resque.redis.set(timestamp_key, Time.now.to_i)
+  def self.perform(args)
+    timestamp_key = args[0]
+    host = args[1] || "localhost"
+    port = args[2] || "6379"
+    r = Redis.new(:host => host, :port => port)
+    r.set(timestamp_key, Time.now.to_i)
   end
 end

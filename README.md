@@ -47,6 +47,8 @@ Resque::StuckQueue.config[:abort_on_exception] = true
 # optional, pass a logger. Default a ruby logger will be instantiated. Needs to respond to that interface.
 Resque::StuckQueue.config[:logger] = Logger.new($stdout)
 
+# optional, pass a redis. 
+Resque::StuckQueue.config[:redis] = Redis.new
 </pre>
 
 Then start it:

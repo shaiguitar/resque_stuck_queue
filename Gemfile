@@ -1,12 +1,17 @@
 source 'https://rubygems.org'
 
-gem 'resque'
+if ENV['RESQUE_2']
+# resque 2
+  gem 'resque', :git => "https://github.com/engineyard/resque.git"
+else
+  gem 'resque'
+end
+
 gem 'redis-mutex'
 
 # TEST
 gem 'minitest'
 gem 'mocha'
-gem 'resque-mock'
 gem 'pry'
 gem 'rake'
 gem 'm'
