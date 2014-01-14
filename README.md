@@ -49,6 +49,9 @@ Resque::StuckQueue.config[:logger] = Logger.new($stdout)
 
 # optional, pass a redis. 
 Resque::StuckQueue.config[:redis] = Redis.new
+
+# optional, your own custom refresh job. below has an example.
+Resque::StuckQueue.config[:refresh_job] = proc { your_own_enqueue_refreshing_global_key }
 </pre>
 
 Then start it:
@@ -103,7 +106,7 @@ $ bundle exec rake --trace resque:stuck_queue
 
 ## Sidekiq/Other redis-based job queues
 
-If you have trouble with other queues you can use this lib by setting your own custom refresh job (aka, the job that refreshes the global_key). The one thing you need to take care of is ensure whatever and however you enque your own custom job, it sets the global_key to Time.now. Then do:
+If you have trouble with other queues you can use this lib by setting your own custom refresh job (aka, the job that refreshes the global_key). The one thing you need to take care of is ensure whatever and however you enque your own custom job, it sets the global_key to Time.now:
 
 <pre>
 
