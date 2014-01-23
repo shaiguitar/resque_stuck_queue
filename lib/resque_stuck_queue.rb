@@ -50,6 +50,12 @@ module Resque
         @redis ||= (config[:redis] || Resque.redis)
       end
 
+      def redis=(rds)
+        # for resq2 tests
+        @redis = rds
+        Resque.redis = @redis
+      end
+
       def global_key_for(under_queue)
         "#{under_queue}:#{config[:global_key] || GLOBAL_KEY}"
       end

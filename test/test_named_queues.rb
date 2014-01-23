@@ -8,12 +8,13 @@ class TestNamedQueues < Minitest::Test
     Resque::StuckQueue.config[:trigger_timeout] = 1
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
-    Resque.redis.flushall
+    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.redis.flushall
   end
 
   def teardown
    `kill -9 #{@resque_pid}` if @resque_pid
-    Resque::StuckQueue.stop
+    Resque::StuckQueue.force_stop!
     Process.waitpid(@resque_pid) if @resque_pid
   end
 

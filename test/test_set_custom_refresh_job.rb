@@ -9,7 +9,8 @@ class TestYourOwnRefreshJob < Minitest::Test
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
     Resque::StuckQueue.config[:refresh_job] = nil
-    Resque.redis.flushall
+    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.redis.flushall
   end
 
   def teardown

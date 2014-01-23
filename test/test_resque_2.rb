@@ -16,12 +16,13 @@ if !ENV['RESQUE_2'].nil?
 
     def setup
       assert (Resque::VERSION.match /^2\./), "must run in 2.0"
+    Resque::StuckQueue.redis = Redis.new
       Redis.new.flushall
     end
 
    def test_works_with_2_point_oh_do_not_trigger_because_key_is_updated
 
-     Resque.redis = Redis.new
+     Resque::StuckQueue.redis = Redis.new
 
      Resque::StuckQueue.config[:heartbeat] = 1
      Resque::StuckQueue.config[:abort_on_exception] = true
@@ -33,7 +34,7 @@ if !ENV['RESQUE_2'].nil?
      #binding.pry
      Resque::StuckQueue.start_in_background
 
-     @r2_pid = fork { Resque.redis = Redis.new ; Resque::Worker.new("*", :graceful_term => true).work ; Process.waitall }
+     @r2_pid = fork { Resque::StuckQueue.redis = Redis.new ; Resque::Worker.new("*", :graceful_term => true).work ; Process.waitall }
      sleep 10
 
      # did not trigger, resque picked up refresh jobs

@@ -13,17 +13,18 @@ class TestResqueStuckQueue < Minitest::Test
   def setup
     puts "#{__method__}"
     # clean previous test runs
-    Resque.redis.flushall
+    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.redis.flushall
     Resque::StuckQueue.config[:heartbeat]   = 1 # seconds
     Resque::StuckQueue.config[:abort_on_exception] = true
   end
 
   def test_configure_global_key
     puts "#{__method__}"
-    assert_nil Resque.redis.get("it-is-configurable"), "global key should not be set"
+    assert_nil Resque::StuckQueue.redis.get("it-is-configurable"), "global key should not be set"
     Resque::StuckQueue.config[:global_key] = "it-is-configurable"
     start_and_stop_loops_after(2)
-    refute_nil Resque.redis.get("app:it-is-configurable"), "global key should be set"
+    refute_nil Resque::StuckQueue.redis.get("app:it-is-configurable"), "global key should be set"
   end
 
   def test_it_does_not_trigger_handler_if_under_max_time

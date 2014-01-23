@@ -25,11 +25,14 @@ class TestIntegration < Minitest::Test
   # ps aux |grep resqu |awk '{print $2}' | xargs kill
 
   def setup
+    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.redis.flushall
+    Resque::StuckQueue.config[:abort_on_exception] = true
   end
 
   def teardown
    `kill -9 #{@resque_pid}` # CONT falls throughs sometimes? hax, rm this and SIGSTOP/SIGCONT
-    Resque::StuckQueue.stop
+    Resque::StuckQueue.force_stop!
     Process.waitpid(@resque_pid)
   end
 
@@ -43,10 +46,10 @@ class TestIntegration < Minitest::Test
 
     # job gets enqueued successfully
     @resque_pid = run_resque
-    Resque.redis.del(SetRedisKey::NAME)
-    Resque.enqueue(SetRedisKey)
+    Resque::StuckQueue.redis.del(SetRedisKey::NAME)
+    Resque.enqueue_to(:app, SetRedisKey)
     sleep 6 # let resque pick up the job
-    assert_equal Resque.redis.get(SetRedisKey::NAME), "1"
+    assert_equal Resque::StuckQueue.redis.get(SetRedisKey::NAME), "1" # job ran
 
     # check handler did not get called
     assert_equal @triggered, false
@@ -62,10 +65,10 @@ class TestIntegration < Minitest::Test
 
     # job gets enqueued successfully
     @resque_pid = run_resque
-    Resque.redis.del(SetRedisKey::NAME)
+    Resque::StuckQueue.redis.del(SetRedisKey::NAME)
     Process.kill("SIGSTOP", @resque_pid) # jic, do not process jobs so we definitely trigger
     Resque.enqueue(SetRedisKey)
-    assert_equal Resque.redis.get(SetRedisKey::NAME), nil
+    assert_equal Resque::StuckQueue.redis.get(SetRedisKey::NAME), nil
     sleep 2 # allow timeout to trigger
 
     # check handler did get called

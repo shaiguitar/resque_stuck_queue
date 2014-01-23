@@ -5,18 +5,19 @@ class TestCollision < Minitest::Test
   include TestHelper
 
   def setup
-    Resque.redis.flushall
+    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.redis.flushall
   end
 
   def test_two_processes_interacting
     puts "#{__method__}"
     # no resque should be running here so timeouts will be reached + trigger
-    Resque.redis.del("test-incr-key")
+    Resque::StuckQueue.redis.del("test-incr-key")
 
-    p1 = fork { Resque.redis.client.reconnect; run_resque_stuck_daemon;  }
-    p2 = fork { Resque.redis.client.reconnect; run_resque_stuck_daemon;  }
-    p3 = fork { Resque.redis.client.reconnect; run_resque_stuck_daemon;  }
-    p4 = fork { Resque.redis.client.reconnect; run_resque_stuck_daemon;  }
+    p1 = fork { Resque::StuckQueue.redis.client.reconnect; run_resque_stuck_daemon;  }
+    p2 = fork { Resque::StuckQueue.redis.client.reconnect; run_resque_stuck_daemon;  }
+    p3 = fork { Resque::StuckQueue.redis.client.reconnect; run_resque_stuck_daemon;  }
+    p4 = fork { Resque::StuckQueue.redis.client.reconnect; run_resque_stuck_daemon;  }
 
     Thread.new {
       sleep 5 # let test run and trigger once occur (according to time below)
@@ -29,7 +30,7 @@ class TestCollision < Minitest::Test
 
     Process.waitall
 
-    assert_equal 1, Resque.redis.get("test-incr-key").to_i
+    assert_equal 1, Resque::StuckQueue.redis.get("test-incr-key").to_i
   end
 
   private
@@ -38,7 +39,7 @@ class TestCollision < Minitest::Test
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
     Resque::StuckQueue.config[:trigger_timeout] = 3
-    Resque::StuckQueue.config[:handler] = proc { Resque.redis.incr("test-incr-key") }
+    Resque::StuckQueue.config[:handler] = proc { Resque::StuckQueue.redis.incr("test-incr-key") }
     Resque::StuckQueue.start
   end
 

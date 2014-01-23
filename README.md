@@ -133,3 +133,4 @@ Resque::StuckQueue.config[:refresh_job] = proc {
 Run the tests:
 
 `bundle; bundle exec rake`
+`RESQUE_2=1 bundle exec rake # for resq 2 compat`
