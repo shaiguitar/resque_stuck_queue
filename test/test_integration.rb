@@ -2,13 +2,16 @@ require 'minitest'
 require "minitest/autorun"
 require 'pry'
 
+
 $:.unshift(".")
 require 'resque_stuck_queue'
 require File.join(File.expand_path(File.dirname(__FILE__)), "resque", "set_redis_key")
 require File.join(File.expand_path(File.dirname(__FILE__)), "resque", "refresh_latest_timestamp")
+require File.join(File.expand_path(File.dirname(__FILE__)), "test_helper")
 
 class TestIntegration < Minitest::Test
 
+  include TestHelper
   # TODODS there's a better way to do this.
   #
   #
@@ -28,12 +31,6 @@ class TestIntegration < Minitest::Test
    `kill -9 #{@resque_pid}` # CONT falls throughs sometimes? hax, rm this and SIGSTOP/SIGCONT
     Resque::StuckQueue.stop
     Process.waitpid(@resque_pid)
-  end
-
-  def run_resque
-    pid = fork { exec("QUEUE=* bundle exec rake --trace resque:work") }
-    sleep 3 # wait for resque to boot up
-    pid
   end
 
   def test_resque_enqueues_a_job_does_not_trigger
@@ -97,5 +94,6 @@ class TestIntegration < Minitest::Test
       assert false, "should have succeeded with good refresh_job.\n #{e.inspect}"
     end
   end
+
 
 end

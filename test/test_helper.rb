@@ -11,8 +11,8 @@ require File.join(File.expand_path(File.dirname(__FILE__)), "resque", "refresh_l
 
 module TestHelper
 
-  def run_resque
-    pid = fork { exec("QUEUE=* bundle exec rake --trace resque:work") }
+  def run_resque(queue_name = "*")
+    pid = fork { exec("QUEUE=#{queue_name} bundle exec rake --trace resque:work") }
     sleep 3 # wait for resque to boot up
     pid
   end
