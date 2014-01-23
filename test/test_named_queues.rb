@@ -1,6 +1,6 @@
 require File.join(File.expand_path(File.dirname(__FILE__)), "test_helper")
 
-class TestNamedQueue < Minitest::Test
+class TestNamedQueues < Minitest::Test
 
   include TestHelper
 
@@ -17,20 +17,18 @@ class TestNamedQueue < Minitest::Test
     Process.waitpid(@resque_pid) if @resque_pid
   end
 
-  def test_no_custom_named_queue
+  def test_no_custom_queues_defaults_to_app
     puts "#{__method__}"
-    Resque::StuckQueue.config[:named_queue] = nil
+    Resque::StuckQueue.config[:queues] = nil
     start_and_stop_loops_after(2)
-    assert_equal Resque::StuckQueue.global_key, "app:resque-stuck-queue"
-    assert_equal Resque::StuckQueue.named_queue, :app
+    assert Resque::StuckQueue.global_keys.include?("app:resque-stuck-queue"), 'has global keys'
   end
 
-  def test_has_custom_named_queue
+  def test_has_custom_queues
     puts "#{__method__}"
-    Resque::StuckQueue.config[:named_queue] = :foo
+    Resque::StuckQueue.config[:queues] = [:foo,:bar]
     start_and_stop_loops_after(2)
-    assert_equal Resque::StuckQueue.global_key, "foo:resque-stuck-queue"
-    assert_equal Resque::StuckQueue.named_queue, :foo
+    assert Resque::StuckQueue.global_keys.include?("foo:resque-stuck-queue"), 'has global keys'
   end
 
   def test_resque_enqueues_a_job_with_resqueue_running_but_on_that_queue_does_trigger
@@ -53,8 +51,8 @@ class TestNamedQueue < Minitest::Test
     puts "#{__method__}"
     Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
     Resque::StuckQueue.config[:heartbeat] = 1
-    Resque::StuckQueue.config[:named_queue] = :custom_queue_name
-    assert_equal Resque::StuckQueue.global_key, "custom_queue_name:resque-stuck-queue"
+    Resque::StuckQueue.config[:queues] = [:custom_queue_name, :diff_one]
+    assert Resque::StuckQueue.global_keys.include?("custom_queue_name:resque-stuck-queue"), 'has global keys'
     @triggered = false
     Resque::StuckQueue.config[:handler] = proc { @triggered = true }
     @resque_pid = run_resque("custom_queue_name")
@@ -64,8 +62,6 @@ class TestNamedQueue < Minitest::Test
     # check handler did not get called
     assert_equal @triggered, false
   end
-
-
 
 end
 

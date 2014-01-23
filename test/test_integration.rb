@@ -81,7 +81,7 @@ class TestIntegration < Minitest::Test
     Resque::StuckQueue.config[:heartbeat] = 1
 
     begin
-      Resque::StuckQueue.config[:refresh_job] = proc { Resque.enqueue(RefreshLatestTimestamp, Resque::StuckQueue.global_key) }
+      Resque::StuckQueue.config[:refresh_job] = proc { Resque.enqueue(RefreshLatestTimestamp, Resque::StuckQueue.global_key_for(:app)) }
       @triggered = false
       Resque::StuckQueue.config[:handler] = proc { @triggered = true }
       Thread.new { Resque::StuckQueue.start }

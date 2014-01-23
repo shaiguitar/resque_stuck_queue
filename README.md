@@ -6,7 +6,7 @@ This is to be used to satisfy an ops problem. There have been cases resque proce
 
 ## What is it?
 
-If resque doesn't run jobs within a certain timeframe, it will trigger a pre-defined handler of your choice. You can use this to send an email, pager duty, add more resque workers, restart resque, send you a txt...whatever suits you.
+If resque doesn't run jobs in specific queues (defaults to `@queue = :app`) within a certain timeframe, it will trigger a pre-defined handler of your choice. You can use this to send an email, pager duty, add more resque workers, restart resque, send you a txt...whatever suits you.
 
 ## How it works
 
@@ -39,10 +39,11 @@ Resque::StuckQueue.config[:trigger_timeout] = 10.hours
 Resque::StuckQueue.config[:handler] = proc { send_email }
 
 # optional, in case you want to set your own name for the key that will be used as the last good hearbeat time
+# note this will be namespaced under the specific queue it's monitoring, for eg "app:name-the-refresh-key-as-you-please"
 Resque::StuckQueue.config[:global_key] = "name-the-refresh-key-as-you-please"
 
-# optional, monitor a specific redis queue
-Resque::StuckQueue.config[:queue_name] = :app
+# optional, monitor specific queues you want to send a heartbeat/monitor
+Resque::StuckQueue.config[:queues] = [:app, :high, :my_custom_queue_name]
 
 # optional, if you want the resque-stuck-queue threads to explicitly raise, default is false
 Resque::StuckQueue.config[:abort_on_exception] = true
@@ -109,7 +110,7 @@ $ bundle exec rake --trace resque:stuck_queue
 
 ## Sidekiq/Other redis-based job queues
 
-If you have trouble with other queues you can use this lib by setting your own custom refresh job (aka, the job that refreshes the global_key). The one thing you need to take care of is ensure whatever and however you enque your own custom job, it sets the global_key to Time.now:
+If you have trouble with other queues you can use this lib by setting your own custom refresh job (aka, the job that refreshes your queue specific global_key). The one thing you need to take care of is ensure whatever and however you enque your own custom job, it sets the global_key to Time.now:
 
 <pre>
 
@@ -117,7 +118,7 @@ class CustomJob
   include Sidekiq::Worker
   def perform
     # ensure you're setting the key in the redis the job queue is using
-    $redis.set(Resque::StuckQueue.global_key, Time.now.to_i)
+    $redis.set(Resque::StuckQueue.global_key_for(queue_name), Time.now.to_i)
   end
 end
 

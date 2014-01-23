@@ -50,6 +50,18 @@ module Resque
         @redis ||= (config[:redis] || Resque.redis)
       end
 
+      def global_key_for(under_queue)
+        "#{under_queue}:#{config[:global_key] || GLOBAL_KEY}"
+      end
+
+      def global_keys
+        queues.map{|q| global_key_for(q) }
+      end
+
+      def queues
+        @queues ||= (config[:queues] || [:app])
+      end
+
       def start_in_background
         Thread.new do
           Thread.current.abort_on_exception = config[:abort_on_exception]
@@ -94,21 +106,13 @@ module Resque
       def reset!
         # clean state so we can stop and start in the same process.
         @config = config.dup #unfreeze
+        @queues = nil
         @running = false
         @logger = nil
       end
 
       def stopped?
         @stopped
-      end
-
-      def global_key
-        # public, for use in custom heartbeat job
-        "#{named_queue}:#{config[:global_key] || GLOBAL_KEY}"
-      end
-
-      def named_queue
-        config[:named_queue] || :app
       end
 
       private
@@ -121,17 +125,20 @@ module Resque
             # we want to go through resque jobs, because that's what we're trying to test here:
             # ensure that jobs get executed and the time is updated!
             logger.info("Sending refresh job")
-            enqueue_job
+            enqueue_jobs
             wait_for_it
           end
         end
       end
 
-      def enqueue_job
+      def enqueue_jobs
         if config[:refresh_job]
+          # FIXME config[:refresh_job] with mutliple queues is bad semantics
           config[:refresh_job].call
         else
-          Resque.enqueue(RefreshLatestTimestamp, [global_key, redis.client.host, redis.client.port])
+          queues.each do |queue_name|
+            Resque.enqueue_to(queue_name, RefreshLatestTimestamp, [global_key_for(queue_name), redis.client.host, redis.client.port])
+          end
         end
       end
 
@@ -143,9 +150,11 @@ module Resque
             mutex = Redis::Mutex.new('resque_stuck_queue_lock', block: 0)
             if mutex.lock
               begin
-                if Time.now.to_i - last_time_worked > max_wait_time
-                  logger.info("Triggering handler at #{Time.now} (pid: #{Process.pid})")
-                  trigger_handler
+                queues.each do |queue_name|
+                  if Time.now.to_i - last_time_worked(queue_name) > max_wait_time
+                    logger.info("Triggering handler for #{queue_name} at #{Time.now} (pid: #{Process.pid})")
+                    trigger_handler(queue_name)
+                  end
                 end
               ensure
                 mutex.unlock
@@ -156,31 +165,31 @@ module Resque
         end
       end
 
-      def last_time_worked
-        time_set = read_from_redis
+      def last_time_worked(queue_name)
+        time_set = read_from_redis(queue_name)
         if time_set
           time_set
         else
-          manual_refresh
+          manual_refresh(queue_name)
          end.to_i
       end
 
-      def manual_refresh
+      def manual_refresh(queue_name)
          time = Time.now.to_i
-         redis.set(global_key, time)
+         redis.set(global_key_for(queue_name), time)
          time
       end
 
-      def trigger_handler
+      def trigger_handler(queue_name)
         (config[:handler] || HANDLER).call
-        manual_refresh
+        manual_refresh(queue_name)
       rescue => e
-        logger.info("handler crashed: #{e.inspect}")
+        logger.info("handler for #{queue_name} crashed: #{e.inspect}")
         force_stop!
       end
 
-      def read_from_redis
-        redis.get(global_key)
+      def read_from_redis(queue_name)
+        redis.get(global_key_for(queue_name))
       end
 
       def wait_for_it
@@ -195,7 +204,6 @@ module Resque
 end
 
 class RefreshLatestTimestamp
-  @queue = Resque::StuckQueue.named_queue
   def self.perform(args)
     timestamp_key = args[0]
     host = args[1]
