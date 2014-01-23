@@ -36,8 +36,9 @@ class TestNamedQueues < Minitest::Test
     puts "#{__method__}"
     Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
     Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:queues] = [:custom_queue_name]
     @triggered = false
-    Resque::StuckQueue.config[:handler] = proc { @triggered = true }
+    Resque::StuckQueue.config[:handler] = proc { |queue_name| @triggered = queue_name }
     Resque::StuckQueue.start_in_background
 
     # job gets enqueued successfully
@@ -45,7 +46,7 @@ class TestNamedQueues < Minitest::Test
     sleep 2 # allow timeout to trigger
 
     # check handler did get called
-    assert_equal @triggered, true
+    assert_equal @triggered, :custom_queue_name
   end
 
   def test_resque_enqueues_a_job_correct_queue_does_not_trigger

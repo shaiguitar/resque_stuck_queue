@@ -14,7 +14,7 @@ module Resque
     GLOBAL_KEY        = "resque-stuck-queue"
     HEARTBEAT         = 60 * 60 # check/refresh every hour
     TRIGGER_TIMEOUT   = 5 * 60 * 60 # warn/trigger 5 hours
-    HANDLER           = proc { $stdout.puts("Shit gone bad with them queues.") }
+    HANDLER           = proc { |queue_name| $stdout.puts("Shit gone bad with them queues...on #{queue_name}.") }
 
     class << self
 
@@ -34,7 +34,7 @@ module Resque
       # :abort_on_exception 
       #
       # # default handler
-      # config[:handler] = proc { send_mail }
+      # config[:handler] = proc { |queue_name| send_mail }
       #
       # # explicit redis
       # config[:redis] = Redis.new
@@ -187,7 +187,7 @@ module Resque
       end
 
       def trigger_handler(queue_name)
-        (config[:handler] || HANDLER).call
+        (config[:handler] || HANDLER).call(queue_name)
         manual_refresh(queue_name)
       rescue => e
         logger.info("handler for #{queue_name} crashed: #{e.inspect}")

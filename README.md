@@ -36,7 +36,7 @@ Resque::StuckQueue.config[:trigger_timeout] = 10.hours
 #
 # triggering will update the key, so you'll have to wait the trigger_timeout again
 # in order for it to trigger again even if workers are still stale.
-Resque::StuckQueue.config[:handler] = proc { send_email }
+Resque::StuckQueue.config[:handler] = proc { |queue_name| send_email("queue #{queue_name} isnt working, aaah the daemons") }
 
 # optional, in case you want to set your own name for the key that will be used as the last good hearbeat time
 # note this will be namespaced under the specific queue it's monitoring, for eg "app:name-the-refresh-key-as-you-please"
@@ -94,7 +94,7 @@ namespace :resque do
 
     Resque::StuckQueue.config[:heartbeat] = 10.minutes
     Resque::StuckQueue.config[:trigger_timeout] = 1.hour
-    Resque::StuckQueue.config[:handler] = proc { $stderr.puts("resque wonky!") }
+    Resque::StuckQueue.config[:handler] = proc { |queue_name| $stderr.puts("resque queue #{queue_name} wonky!") }
 
     Resque::StuckQueue.start # blocking operation, daemon running
   end
