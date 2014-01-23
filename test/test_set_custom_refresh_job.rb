@@ -40,5 +40,4 @@ class TestYourOwnRefreshJob < Minitest::Test
     end
   end
 
-
 end

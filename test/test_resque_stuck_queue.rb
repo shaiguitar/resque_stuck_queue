@@ -7,6 +7,7 @@ class TestResqueStuckQueue < Minitest::Test
   def teardown
     puts "#{__method__}"
     Resque::StuckQueue.unstub(:read_from_redis)
+    Resque::StuckQueue.config.clear
   end
 
   def setup
@@ -22,7 +23,7 @@ class TestResqueStuckQueue < Minitest::Test
     assert_nil Resque.redis.get("it-is-configurable"), "global key should not be set"
     Resque::StuckQueue.config[:global_key] = "it-is-configurable"
     start_and_stop_loops_after(2)
-    refute_nil Resque.redis.get("it-is-configurable"), "global key should be set"
+    refute_nil Resque.redis.get("app:it-is-configurable"), "global key should be set"
   end
 
   def test_it_does_not_trigger_handler_if_under_max_time

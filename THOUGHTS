@@ -11,3 +11,6 @@ add a 'resque_stuck_queue/tasks' bit? See tres eg
 require 'resque/stuck_queue' instead?
 ensure the logging gets flushed into log file correctly? (integration with god?)
 add a trap{} to force_stop. ok for overwriting process's trap handlers? use config for that?
+
+fix skeleton recipe https://github.com/shaiguitar/resque_stuck_queue/blame/master/README.md#L103
+  raise appname, => :environment, log path

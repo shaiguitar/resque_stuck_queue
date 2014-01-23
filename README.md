@@ -41,6 +41,9 @@ Resque::StuckQueue.config[:handler] = proc { send_email }
 # optional, in case you want to set your own name for the key that will be used as the last good hearbeat time
 Resque::StuckQueue.config[:global_key] = "name-the-refresh-key-as-you-please"
 
+# optional, monitor a specific redis queue
+Resque::StuckQueue.config[:queue_name] = :app
+
 # optional, if you want the resque-stuck-queue threads to explicitly raise, default is false
 Resque::StuckQueue.config[:abort_on_exception] = true
 

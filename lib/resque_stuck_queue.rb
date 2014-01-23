@@ -104,7 +104,11 @@ module Resque
 
       def global_key
         # public, for use in custom heartbeat job
-        config[:global_key] || GLOBAL_KEY
+        "#{named_queue}:#{config[:global_key] || GLOBAL_KEY}"
+      end
+
+      def named_queue
+        config[:named_queue] || :app
       end
 
       private
@@ -191,7 +195,7 @@ module Resque
 end
 
 class RefreshLatestTimestamp
-  @queue = :app
+  @queue = Resque::StuckQueue.named_queue
   def self.perform(args)
     timestamp_key = args[0]
     host = args[1]
