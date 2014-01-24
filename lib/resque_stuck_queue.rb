@@ -176,6 +176,8 @@ module Resque
         if time_set
           time_set
         else
+          # the first time this is being used, key wont be there
+          # so just start now.
           manual_refresh(queue_name)
          end.to_i
       end
