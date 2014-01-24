@@ -56,8 +56,8 @@ module Resque
         Resque.redis = @redis
       end
 
-      def global_key_for(under_queue)
-        "#{under_queue}:#{config[:global_key] || GLOBAL_KEY}"
+      def global_key_for(queue)
+        "#{queue}:#{config[:global_key] || GLOBAL_KEY}"
       end
 
       def global_keys
@@ -130,7 +130,7 @@ module Resque
           while @running
             # we want to go through resque jobs, because that's what we're trying to test here:
             # ensure that jobs get executed and the time is updated!
-            logger.info("Sending refresh job")
+            logger.info("Sending refresh jobs")
             enqueue_jobs
             wait_for_it
           end
