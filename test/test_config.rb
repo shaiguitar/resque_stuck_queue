@@ -1,6 +1,6 @@
 require File.join(File.expand_path(File.dirname(__FILE__)), "test_helper")
 
-class TestResqueStuckQueue < Minitest::Test
+class TestConfig < Minitest::Test
 
   include TestHelper
 
@@ -12,6 +12,17 @@ class TestResqueStuckQueue < Minitest::Test
 
   def teardown
     Resque::StuckQueue.reset!
+  end
+
+  def test_config_has_descriptions
+    c = Resque::StuckQueue::Config.new
+    assert c.description_for(:logger) =~ /Logger/, "has descriptions"
+  end
+
+  def test_outputs_all_config_options
+    c = Resque::StuckQueue::Config.new
+    puts c.pretty_descriptions
+    assert true
   end
 
   def test_has_logger

@@ -20,42 +20,41 @@ It will trigger a pre-defined proc (see below) if the last time the hearbeat job
 
 ## Usage
 
-Configure it first:
+Configure it first. Optional settings are below. You'll most likely at the least want to tune `:handler`,`:heartbeat` and `:trigger_timeout` settings.
 
 <pre>
-# how often to push that 'heartbeat' job to refresh the latest time it worked.
-Resque::StuckQueue.config[:heartbeat] = 5.minutes
+handler:
+	set to what gets triggered when resque-stuck-queue will detect the latest heartbeat is older than the trigger_timeout time setting.
+	Example:
+	Resque::StuckQueue.config[:handler] = proc { |queue_name, lagtime| send_email('queue #{queue_name} isnt working, aaah the daemons') }
 
-# since there is an realistic and acceptable lag for job queues, set this to how much you're
-# willing to accept between the current time and when the last hearbeat job went through.
-#
-# take the heartbeat into consideration when setting this (it will fire 10 hours + 5 minutes with above heartbeat).
-Resque::StuckQueue.config[:trigger_timeout] = 10.hours
+heartbeat:
+	set to how often to push that 'heartbeat' job to refresh the latest time it worked.
+	Example:
+	Resque::StuckQueue.config[:heartbeat] = 5.minutes
 
-# what gets triggered when resque-stuck-queue will detect the latest heartbeat is older than the trigger_timeout time set above.
-#
-# triggering will update the key, so you'll have to wait the trigger_timeout again
-# in order for it to trigger again even if workers are still stale.
-Resque::StuckQueue.config[:handler] = proc { |queue_name| send_email("queue #{queue_name} isnt working, aaah the daemons") }
+trigger_timeout:
+	set to how much of a resque work lag you are willing to accept before being notified. note: take the :heartbeat setting into account when setting this timeout.
+	Example:
+	Resque::StuckQueue.config[:trigger_timeout] = 55.minutes
 
-# optional, in case you want to set your own name for the key that will be used as the last good hearbeat time
-# note this will be namespaced under the specific queue it's monitoring, for eg "app:name-the-refresh-key-as-you-please"
-Resque::StuckQueue.config[:global_key] = "name-the-refresh-key-as-you-please"
+redis:
+	set the Redis instance StuckQueue will use
 
-# optional, monitor specific queues you want to send a heartbeat/monitor
-Resque::StuckQueue.config[:queues] = [:app, :high, :my_custom_queue_name]
+heartbeat_key:
+	optional, name of keys to keep track of the last good resque heartbeat time
 
-# optional, if you want the resque-stuck-queue threads to explicitly raise, default is false
-Resque::StuckQueue.config[:abort_on_exception] = true
+logger:
+	optional, pass a Logger. Default a ruby logger will be instantiated. Needs to respond to that interface.
 
-# optional, pass a logger. Default a ruby logger will be instantiated. Needs to respond to that interface.
-Resque::StuckQueue.config[:logger] = Logger.new($stdout)
+queues:
+	optional, monitor specific queues you want to send a heartbeat/monitor to. default is :app
 
-# optional, pass a redis. 
-Resque::StuckQueue.config[:redis] = Redis.new
+abort_on_exception:
+	optional, if you want the resque-stuck-queue threads to explicitly raise, default is false
 
-# optional, your own custom refresh job. below has an example.
-Resque::StuckQueue.config[:refresh_job] = proc { your_own_enqueue_refreshing_global_key }
+refresh_job:
+	optional, your own custom refreshing job. if you are using something other than resque
 </pre>
 
 Then start it:
@@ -110,7 +109,7 @@ $ bundle exec rake --trace resque:stuck_queue
 
 ## Sidekiq/Other redis-based job queues
 
-If you have trouble with other queues you can use this lib by setting your own custom refresh job (aka, the job that refreshes your queue specific global_key). The one thing you need to take care of is ensure whatever and however you enque your own custom job, it sets the global_key to Time.now:
+If you have trouble with other queues you can use this lib by setting your own custom refresh job (aka, the job that refreshes your queue specific heartbeat_key). The one thing you need to take care of is ensure whatever and however you enque your own custom job, it sets the heartbeat_key to Time.now:
 
 <pre>
 
@@ -118,7 +117,7 @@ class CustomJob
   include Sidekiq::Worker
   def perform
     # ensure you're setting the key in the redis the job queue is using
-    $redis.set(Resque::StuckQueue.global_key_for(queue_name), Time.now.to_i)
+    $redis.set(Resque::StuckQueue.heartbeat_key_for(queue_name), Time.now.to_i)
   end
 end
 
