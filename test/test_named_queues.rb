@@ -13,7 +13,7 @@ class TestNamedQueues < Minitest::Test
   end
 
   def teardown
-   `kill -9 #{@resque_pid}` if @resque_pid
+    hax_kill_resque
     Resque::StuckQueue.force_stop!
     Process.waitpid(@resque_pid) if @resque_pid
   end
@@ -22,14 +22,14 @@ class TestNamedQueues < Minitest::Test
     puts "#{__method__}"
     Resque::StuckQueue.config[:queues] = nil
     start_and_stop_loops_after(2)
-    assert Resque::StuckQueue.global_keys.include?("app:resque-stuck-queue"), 'has global keys'
+    assert Resque::StuckQueue.heartbeat_keys.include?("app:resque-stuck-queue"), 'has global keys'
   end
 
   def test_has_custom_queues
     puts "#{__method__}"
     Resque::StuckQueue.config[:queues] = [:foo,:bar]
     start_and_stop_loops_after(2)
-    assert Resque::StuckQueue.global_keys.include?("foo:resque-stuck-queue"), 'has global keys'
+    assert Resque::StuckQueue.heartbeat_keys.include?("foo:resque-stuck-queue"), 'has global keys'
   end
 
   def test_resque_enqueues_a_job_with_resqueue_running_but_on_that_queue_does_trigger
@@ -54,7 +54,7 @@ class TestNamedQueues < Minitest::Test
     Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:queues] = [:custom_queue_name, :diff_one]
-    assert Resque::StuckQueue.global_keys.include?("custom_queue_name:resque-stuck-queue"), 'has global keys'
+    assert Resque::StuckQueue.heartbeat_keys.include?("custom_queue_name:resque-stuck-queue"), 'has global keys'
     @triggered = false
     Resque::StuckQueue.config[:handler] = proc { @triggered = true }
     @resque_pid = run_resque("custom_queue_name")

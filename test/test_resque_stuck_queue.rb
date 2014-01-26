@@ -19,11 +19,11 @@ class TestResqueStuckQueue < Minitest::Test
     Resque::StuckQueue.config[:abort_on_exception] = true
   end
 
-  def test_configure_global_key
+  def test_configure_heartbeat_key
     puts "#{__method__}"
     assert_nil Resque::StuckQueue.redis.get("it-is-configurable"), "global key should not be set"
-    Resque::StuckQueue.config[:global_key] = "it-is-configurable"
-    start_and_stop_loops_after(2)
+    Resque::StuckQueue.config[:heartbeat_key] = "it-is-configurable"
+    start_and_stop_loops_after(3)
     refute_nil Resque::StuckQueue.redis.get("app:it-is-configurable"), "global key should be set"
   end
 

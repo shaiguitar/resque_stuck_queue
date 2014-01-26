@@ -1,4 +1,5 @@
 require "resque_stuck_queue/version"
+require "resque_stuck_queue/config"
 
 # TODO move this require into a configurable?
 require 'resque'
@@ -11,35 +12,12 @@ require 'logger'
 module Resque
   module StuckQueue
 
-    GLOBAL_KEY        = "resque-stuck-queue"
-    HEARTBEAT         = 60 * 60 # check/refresh every hour
-    TRIGGER_TIMEOUT   = 5 * 60 * 60 # warn/trigger 5 hours
-    HANDLER           = proc { |queue_name| $stdout.puts("Shit gone bad with them queues...on #{queue_name}.") }
-
     class << self
 
       attr_accessor :config
 
-      # # how often we refresh the key
-      # :heartbeat  = 5 * 60
-      #
-      # # this could just be :heartbeat but it's possible there's an acceptable lag/bottleneck
-      # # in the queue that we want to allow to be before we think it's bad.
-      # :trigger_timeout = 10 * 60
-      #
-      # # The global key that will be used to check the latest time
-      # :global_key  = "resque-stuck-queue"
-      #
-      # # for threads involved here. default is false
-      # :abort_on_exception 
-      #
-      # # default handler
-      # config[:handler] = proc { |queue_name| send_mail }
-      #
-      # # explicit redis
-      # config[:redis] = Redis.new
       def config
-        @config ||= {}
+        @config ||= Config.new
       end
 
       def logger
@@ -56,12 +34,16 @@ module Resque
         Resque.redis = @redis
       end
 
-      def global_key_for(queue)
-        "#{queue}:#{config[:global_key] || GLOBAL_KEY}"
+      def heartbeat_key_for(queue)
+        "#{queue}:#{config[:heartbeat_key] || HEARTBEAT_KEY}"
       end
 
-      def global_keys
-        queues.map{|q| global_key_for(q) }
+      def triggered_key_for(queue)
+        "#{queue}:#{config[:triggered_key] || TRIGGERED_KEY}"
+      end
+
+      def heartbeat_keys
+        queues.map{|q| heartbeat_key_for(q) }
       end
 
       def queues
@@ -143,7 +125,7 @@ module Resque
           config[:refresh_job].call
         else
           queues.each do |queue_name|
-            Resque.enqueue_to(queue_name, RefreshLatestTimestamp, [global_key_for(queue_name), redis.client.host, redis.client.port])
+            Resque.enqueue_to(queue_name, RefreshLatestTimestamp, [heartbeat_key_for(queue_name), redis.client.host, redis.client.port])
           end
         end
       end
@@ -157,8 +139,11 @@ module Resque
             if mutex.lock
               begin
                 queues.each do |queue_name|
-                  if Time.now.to_i - last_time_worked(queue_name) > max_wait_time
-                    logger.info("Triggering handler for #{queue_name} at #{Time.now} (pid: #{Process.pid})")
+                  logger.info("Checking if queue #{queue_name} is lagging")
+                  # else TODO recovered?
+                  if should_trigger?(queue_name)
+                    logger.info("Triggering handler for #{queue_name} at #{Time.now}.")
+                    logger.info("Lag time for #{queue_name} is #{lag_time(queue_name)} seconds.")
                     trigger_handler(queue_name)
                   end
                 end
@@ -171,8 +156,15 @@ module Resque
         end
       end
 
-      def last_time_worked(queue_name)
-        time_set = read_from_redis(queue_name)
+      #def recovered?
+        # already triggered once (last_trigger is not nil), but lag time is ok.
+        # then over here we'll rm last_triggered
+        # and fire a recovered handler. by rm the last_triggered the next time
+        # there is a problem, should_trigger? should return true
+      #end
+
+      def last_successful_heartbeat(queue_name)
+        time_set = read_from_redis(heartbeat_key_for(queue_name))
         if time_set
           time_set
         else
@@ -182,26 +174,59 @@ module Resque
          end.to_i
       end
 
-      def manual_refresh(queue_name)
-         time = Time.now.to_i
-         redis.set(global_key_for(queue_name), time)
-         time
+      def manual_refresh(queue_name, type = :first_time)
+        if type == :triggered
+          time = Time.now.to_i
+          redis.set(triggered_key_for(queue_name), time)
+          time
+        elsif type == :first_time
+          time = Time.now.to_i
+          redis.set(heartbeat_key_for(queue_name), time)
+          time
+        end
+      end
+
+      def lag_time(queue_name)
+        Time.now.to_i - last_successful_heartbeat(queue_name)
+      end
+
+      def last_triggered(queue_name)
+        time_set = read_from_redis(triggered_key_for(queue_name))
+        if !time_set.nil?
+          Time.now.to_i - time_set.to_i
+        end
+      end
+
+      def should_trigger?(queue_name)
+        if lag_time(queue_name) > max_wait_time
+          last_trigger = last_triggered(queue_name)
+
+          if last_trigger.nil?
+            return true
+          elsif last_trigger > max_wait_time
+            return true
+          else
+            # if we've already triggered, the next trigger should be on the next iteration of max_wait_time.
+            return false
+          end
+        end
       end
 
       def trigger_handler(queue_name)
-        (config[:handler] || HANDLER).call(queue_name)
-        manual_refresh(queue_name)
+        (config[:handler] || HANDLER).call(queue_name, lag_time(queue_name))
+        manual_refresh(queue_name, :triggered)
       rescue => e
         logger.info("handler for #{queue_name} crashed: #{e.inspect}")
+        logger.info("\n#{e.backtrace.join("\n")}")
         force_stop!
       end
 
-      def read_from_redis(queue_name)
-        redis.get(global_key_for(queue_name))
+      def read_from_redis(keyname)
+        redis.get(keyname)
       end
 
       def wait_for_it
-        sleep config[:heartbeat] || HEARTBEAT
+        sleep config[:heartbeat] || HEARTBEAT_TIMEOUT
       end
 
       def max_wait_time

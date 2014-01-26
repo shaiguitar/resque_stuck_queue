@@ -12,84 +12,91 @@ require File.join(File.expand_path(File.dirname(__FILE__)), "test_helper")
 class TestIntegration < Minitest::Test
 
   include TestHelper
-  # TODODS there's a better way to do this.
-  #
-  #
-  # run test with  VVERBOSE=1 DEBUG=1 for more output
-  #
-  #
-  # => sleeping suckc
-  # => resque sleeps 5 between checking enqueed jobs, can be configurable?
-  #
-  # cleanup processes correctly?
-  # ps aux |grep resqu |awk '{print $2}' | xargs kill
+
+  # UBER HAXING no after(:all) or before(:all)
+  # if adding a test here, add
+  # self.class.tests_ran += 1
+  class << self
+    def tests_running?
+      test_count = public_instance_methods.select{|m| m.to_s.match(/^test_/)}.size
+      true if tests_ran != test_count
+    end
+
+    def tests_done?
+      !tests_running?
+    end
+
+    attr_accessor :tests_ran, :resque_pid
+    def tests_ran
+      @tests_ran ||= 0
+    end
+
+    def run_resque_before_all
+      return if @running_resque
+      @running_resque = true
+
+      @resque_pid = TestHelper.run_resque
+    end
+  end
 
   def setup
     Resque::StuckQueue.redis = Redis.new
     Resque::StuckQueue.redis.flushall
     Resque::StuckQueue.config[:abort_on_exception] = true
+    self.class.run_resque_before_all
   end
 
   def teardown
-   `kill -9 #{@resque_pid}` # CONT falls throughs sometimes? hax, rm this and SIGSTOP/SIGCONT
-    Resque::StuckQueue.force_stop!
-    Process.waitpid(@resque_pid)
+    if self.class.tests_done?
+      hax_kill_resque
+      Process.waitall
+      return
+    end
   end
 
   def test_resque_enqueues_a_job_does_not_trigger
     puts "#{__method__}"
-    Resque::StuckQueue.config[:trigger_timeout] = 100 # wait a while so we don't trigger
-    Resque::StuckQueue.config[:heartbeat] = 2
+    self.class.tests_ran += 1
+
+    Resque::StuckQueue.config[:trigger_timeout] = 10
+    Resque::StuckQueue.config[:heartbeat] = 1
     @triggered = false
     Resque::StuckQueue.config[:handler] = proc { @triggered = true }
-    Thread.new { Resque::StuckQueue.start }
-
-    # job gets enqueued successfully
-    @resque_pid = run_resque
+    start_and_stop_loops_after(5)
     Resque::StuckQueue.redis.del(SetRedisKey::NAME)
     Resque.enqueue_to(:app, SetRedisKey)
-    sleep 6 # let resque pick up the job
-    assert_equal Resque::StuckQueue.redis.get(SetRedisKey::NAME), "1" # job ran
-
-    # check handler did not get called
+    sleep 3
+    assert_equal Resque::StuckQueue.redis.get(SetRedisKey::NAME), "1"
+    # job ran successfully, so don't trigger
     assert_equal @triggered, false
   end
 
   def test_resque_does_not_enqueues_a_job_does_trigger
     puts "#{__method__}"
-    Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
+    self.class.tests_ran += 1
+
+    Resque::StuckQueue.config[:trigger_timeout] = 0
     Resque::StuckQueue.config[:heartbeat] = 1
     @triggered = false
     Resque::StuckQueue.config[:handler] = proc { @triggered = true }
-    Thread.new { Resque::StuckQueue.start }
-
-    # job gets enqueued successfully
-    @resque_pid = run_resque
-    Resque::StuckQueue.redis.del(SetRedisKey::NAME)
-    Process.kill("SIGSTOP", @resque_pid) # jic, do not process jobs so we definitely trigger
-    Resque.enqueue(SetRedisKey)
-    assert_equal Resque::StuckQueue.redis.get(SetRedisKey::NAME), nil
-    sleep 2 # allow timeout to trigger
-
+    start_and_stop_loops_after(2)
     # check handler did get called
     assert_equal @triggered, true
-
-    # unstick the process so we can kill it in teardown
-    Process.kill("SIGCONT", @resque_pid)
   end
 
   def test_has_settable_custom_hearbeat_job
     puts "#{__method__}"
+    self.class.tests_ran += 1
+
     Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
     Resque::StuckQueue.config[:heartbeat] = 1
 
     begin
-      Resque::StuckQueue.config[:refresh_job] = proc { Resque.enqueue(RefreshLatestTimestamp, Resque::StuckQueue.global_key_for(:app)) }
+      Resque::StuckQueue.config[:refresh_job] = proc { Resque.enqueue(RefreshLatestTimestamp, Resque::StuckQueue.heartbeat_key_for(:app)) }
       @triggered = false
       Resque::StuckQueue.config[:handler] = proc { @triggered = true }
-      Thread.new { Resque::StuckQueue.start }
+      start_and_stop_loops_after(4)
 
-      @resque_pid = run_resque
       sleep 3 # allow trigger
       assert true, "should not have raised"
       assert @triggered, "should have triggered"
@@ -97,6 +104,5 @@ class TestIntegration < Minitest::Test
       assert false, "should have succeeded with good refresh_job.\n #{e.inspect}"
     end
   end
-
 
 end

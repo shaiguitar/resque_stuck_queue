@@ -11,10 +11,18 @@ require File.join(File.expand_path(File.dirname(__FILE__)), "resque", "refresh_l
 
 module TestHelper
 
+  extend self
+
   def run_resque(queue_name = "*")
-    pid = fork { exec("QUEUE=#{queue_name} bundle exec rake --trace resque:work") }
+    pid = fork { exec("export QUEUE=#{queue_name}; bundle exec rake --trace resque:work") }
     sleep 3 # wait for resque to boot up
     pid
+  end
+
+  def hax_kill_resque
+    # ugly, FIXME how to get pid of forked forked process. run_resque pid is incorrect.
+   `ps aux |grep resque |awk '{print $2}' |xargs kill`
+   sleep 2 # wait for shutdown
   end
 
   def start_and_stop_loops_after(secs)
