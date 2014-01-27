@@ -8,6 +8,8 @@ This is to be used to satisfy an ops problem. There have been cases resque proce
 
 If resque doesn't run jobs in specific queues (defaults to `@queue = :app`) within a certain timeframe, it will trigger a pre-defined handler of your choice. You can use this to send an email, pager duty, add more resque workers, restart resque, send you a txt...whatever suits you.
 
+It will also fire a proc to notify you when it's recovered.
+
 ## How it works
 
 When you call `start` you are essentially starting two threads that will continiously run until `stop` is called or until the process shuts down.
@@ -16,17 +18,26 @@ One thread is responsible for pushing a 'heartbeat' job to resque which will ess
 
 The other thread is a continious loop that will check redis (bypassing resque) for that key and check what the latest time the hearbeat job successfully updated that key.
 
-It will trigger a pre-defined proc (see below) if the last time the hearbeat job updated that key is older than the trigger_timeout setting (see below).
+StuckQueue will trigger a pre-defined proc if the queue is lagging according to the times you've configured (see below).
+
+After firing the proc, it will continue to monitor the queue, but won't call the proc again until the queue is found to be good again (it will then call a different "recovered" handler). 
+
+By calling the recovered proc, it will then complain again the next time the lag is found.
 
 ## Usage
 
 Configure it first. Optional settings are below. You'll most likely at the least want to tune `:triggered_handler`,`:heartbeat` and `:trigger_timeout` settings.
 
 <pre>
-handler:
+triggered_handler:
 	set to what gets triggered when resque-stuck-queue will detect the latest heartbeat is older than the trigger_timeout time setting.
 	Example:
 	Resque::StuckQueue.config[:triggered_handler] = proc { |queue_name, lagtime| send_email('queue #{queue_name} isnt working, aaah the daemons') }
+
+recovered_handler:
+	set to what gets triggered when resque-stuck-queue has triggered a problem, but then detects the queue went back down to functioning well again (it wont trigger again until it has recovered).
+	Example:
+	Resque::StuckQueue.config[:recovered_handler] = proc { |queue_name, lagtime| send_email('phew, queue #{queue_name} is ok') }
 
 heartbeat:
 	set to how often to push that 'heartbeat' job to refresh the latest time it worked.
@@ -44,6 +55,9 @@ redis:
 heartbeat_key:
 	optional, name of keys to keep track of the last good resque heartbeat time
 
+triggered_key:
+	optional, name of keys to keep track of the last trigger time
+
 logger:
 	optional, pass a Logger. Default a ruby logger will be instantiated. Needs to respond to that interface.
 
@@ -55,6 +69,7 @@ abort_on_exception:
 
 refresh_job:
 	optional, your own custom refreshing job. if you are using something other than resque
+
 </pre>
 
 Then start it:
