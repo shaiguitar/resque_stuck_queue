@@ -155,17 +155,10 @@ module Resque
             if mutex.lock
               begin
                 queues.each do |queue_name|
-                  logger.info("Lag time for #{queue_name} is #{lag_time(queue_name).inspect} seconds.")
-                  if triggered_ago = last_triggered(queue_name)
-                    logger.info("Last triggered for #{queue_name} is #{triggered_ago.inspect} seconds.")
-                  else
-                    logger.info("No last trigger found for #{queue_name}.")
-                  end
+                  log_checker_info(queue_name)
                   if should_trigger?(queue_name)
-                    logger.info("Triggering :triggered handler for #{queue_name} at #{Time.now}.")
                     trigger_handler(queue_name, :triggered)
                   elsif should_recover?(queue_name)
-                    logger.info("Triggering :recovered handler for #{queue_name} at #{Time.now}.")
                     trigger_handler(queue_name, :recovered)
                   end
                 end
@@ -235,12 +228,23 @@ module Resque
       def trigger_handler(queue_name, type)
         raise 'Must trigger either the recovered or triggered handler!' unless (type == :recovered || type == :triggered)
         handler_name = :"#{type}_handler"
+        logger.info("Triggering #{type} handler for #{queue_name} at #{Time.now}.")
         (config[handler_name] || const_get(handler_name.upcase)).call(queue_name, lag_time(queue_name))
         manual_refresh(queue_name, type)
       rescue => e
         logger.info("handler #{type} for #{queue_name} crashed: #{e.inspect}")
         logger.info("\n#{e.backtrace.join("\n")}")
         force_stop!
+      end
+
+      def log_checker_info(queue_name)
+        logger.info("Lag time for #{queue_name} is #{lag_time(queue_name).inspect} seconds.")
+        if triggered_ago = last_triggered(queue_name)
+          logger.info("Last triggered for #{queue_name} is #{triggered_ago.inspect} seconds.")
+        else
+          logger.info("No last trigger found for #{queue_name}.")
+        end
+
       end
 
       def read_from_redis(keyname)
