@@ -7,7 +7,6 @@ require 'resque'
 # TODO rm redis-mutex dep and just do the setnx locking here
 require 'redis-mutex'
 
-require 'logger'
 
 module Resque
   module StuckQueue
@@ -21,7 +20,7 @@ module Resque
       end
 
       def logger
-        @logger ||= (config[:logger] || Logger.new($stdout))
+        @logger ||= (config[:logger] || StuckQueue::LOGGER)
       end
 
       def redis
@@ -35,11 +34,19 @@ module Resque
       end
 
       def heartbeat_key_for(queue)
-        "#{queue}:#{config[:heartbeat_key] || HEARTBEAT_KEY}"
+        if config[:heartbeat_key]
+          "#{queue}:#{config[:heartbeat_key]}"
+        else
+          "#{queue}:#{HEARTBEAT_KEY}"
+        end
       end
 
       def triggered_key_for(queue)
-        "#{queue}:#{config[:triggered_key] || TRIGGERED_KEY}"
+        if config[:triggered_key]
+          "#{queue}:#{config[:triggered_key]}"
+        else
+          "#{queue}:#{TRIGGERED_KEY}"
+        end
       end
 
       def heartbeat_keys
@@ -63,6 +70,8 @@ module Resque
         @stopped = false
         @threads = []
         config.freeze
+
+        reset_keys
 
         Redis::Classy.db = redis if Redis::Classy.db.nil?
 
@@ -93,10 +102,17 @@ module Resque
 
       def reset!
         # clean state so we can stop and start in the same process.
-        @config = config.dup #unfreeze
+        @config = Config.new # clear, unfreeze
         @queues = nil
         @running = false
         @logger = nil
+      end
+
+      def reset_keys
+        queues.each do |qn|
+          redis.del(heartbeat_key_for(qn))
+          redis.del(triggered_key_for(qn))
+        end
       end
 
       def stopped?
@@ -139,12 +155,18 @@ module Resque
             if mutex.lock
               begin
                 queues.each do |queue_name|
-                  logger.info("Checking if queue #{queue_name} is lagging")
-                  # else TODO recovered?
+                  logger.info("Lag time for #{queue_name} is #{lag_time(queue_name).inspect} seconds.")
+                  if triggered_ago = last_triggered(queue_name)
+                    logger.info("Last triggered for #{queue_name} is #{triggered_ago.inspect} seconds.")
+                  else
+                    logger.info("No last trigger found for #{queue_name}.")
+                  end
                   if should_trigger?(queue_name)
-                    logger.info("Triggering handler for #{queue_name} at #{Time.now}.")
-                    logger.info("Lag time for #{queue_name} is #{lag_time(queue_name)} seconds.")
-                    trigger_handler(queue_name)
+                    logger.info("Triggering :triggered handler for #{queue_name} at #{Time.now}.")
+                    trigger_handler(queue_name, :triggered)
+                  elsif should_recover?(queue_name)
+                    logger.info("Triggering :recovered handler for #{queue_name} at #{Time.now}.")
+                    trigger_handler(queue_name, :recovered)
                   end
                 end
               ensure
@@ -156,29 +178,23 @@ module Resque
         end
       end
 
-      #def recovered?
-        # already triggered once (last_trigger is not nil), but lag time is ok.
-        # then over here we'll rm last_triggered
-        # and fire a recovered handler. by rm the last_triggered the next time
-        # there is a problem, should_trigger? should return true
-      #end
-
       def last_successful_heartbeat(queue_name)
         time_set = read_from_redis(heartbeat_key_for(queue_name))
         if time_set
           time_set
         else
-          # the first time this is being used, key wont be there
-          # so just start now.
-          manual_refresh(queue_name)
+          manual_refresh(queue_name, :first_time)
          end.to_i
       end
 
-      def manual_refresh(queue_name, type = :first_time)
+      def manual_refresh(queue_name, type)
         if type == :triggered
           time = Time.now.to_i
           redis.set(triggered_key_for(queue_name), time)
           time
+        elsif type == :recovered
+          redis.del(triggered_key_for(queue_name))
+          nil
         elsif type == :first_time
           time = Time.now.to_i
           redis.set(heartbeat_key_for(queue_name), time)
@@ -197,26 +213,32 @@ module Resque
         end
       end
 
+      def should_recover?(queue_name)
+        last_triggered(queue_name) &&
+          lag_time(queue_name) < max_wait_time
+      end
+
       def should_trigger?(queue_name)
-        if lag_time(queue_name) > max_wait_time
+        if lag_time(queue_name) >= max_wait_time
           last_trigger = last_triggered(queue_name)
 
           if last_trigger.nil?
             return true
-          elsif last_trigger > max_wait_time
-            return true
           else
-            # if we've already triggered, the next trigger should be on the next iteration of max_wait_time.
+            # if it already triggered in the past and needs to re-trigger,
+            # :recovered should have cleared last_triggered out by then
             return false
           end
         end
       end
 
-      def trigger_handler(queue_name)
-        (config[:handler] || HANDLER).call(queue_name, lag_time(queue_name))
-        manual_refresh(queue_name, :triggered)
+      def trigger_handler(queue_name, type)
+        raise 'Must trigger either the recovered or triggered handler!' unless (type == :recovered || type == :triggered)
+        handler_name = :"#{type}_handler"
+        (config[handler_name] || const_get(handler_name.upcase)).call(queue_name, lag_time(queue_name))
+        manual_refresh(queue_name, type)
       rescue => e
-        logger.info("handler for #{queue_name} crashed: #{e.inspect}")
+        logger.info("handler #{type} for #{queue_name} crashed: #{e.inspect}")
         logger.info("\n#{e.backtrace.join("\n")}")
         force_stop!
       end

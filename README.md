@@ -20,13 +20,13 @@ It will trigger a pre-defined proc (see below) if the last time the hearbeat job
 
 ## Usage
 
-Configure it first. Optional settings are below. You'll most likely at the least want to tune `:handler`,`:heartbeat` and `:trigger_timeout` settings.
+Configure it first. Optional settings are below. You'll most likely at the least want to tune `:triggered_handler`,`:heartbeat` and `:trigger_timeout` settings.
 
 <pre>
 handler:
 	set to what gets triggered when resque-stuck-queue will detect the latest heartbeat is older than the trigger_timeout time setting.
 	Example:
-	Resque::StuckQueue.config[:handler] = proc { |queue_name, lagtime| send_email('queue #{queue_name} isnt working, aaah the daemons') }
+	Resque::StuckQueue.config[:triggered_handler] = proc { |queue_name, lagtime| send_email('queue #{queue_name} isnt working, aaah the daemons') }
 
 heartbeat:
 	set to how often to push that 'heartbeat' job to refresh the latest time it worked.
@@ -93,7 +93,7 @@ namespace :resque do
 
     Resque::StuckQueue.config[:heartbeat] = 10.minutes
     Resque::StuckQueue.config[:trigger_timeout] = 1.hour
-    Resque::StuckQueue.config[:handler] = proc { |queue_name| $stderr.puts("resque queue #{queue_name} wonky!") }
+    Resque::StuckQueue.config[:triggered_handler] = proc { |queue_name| $stderr.puts("resque queue #{queue_name} wonky!") }
 
     Resque::StuckQueue.start # blocking operation, daemon running
   end

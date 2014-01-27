@@ -5,6 +5,7 @@ class TestYourOwnRefreshJob < Minitest::Test
   include TestHelper
 
   def setup
+    Resque::StuckQueue.reset!
     Resque::StuckQueue.config[:trigger_timeout] = 1
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
@@ -13,17 +14,12 @@ class TestYourOwnRefreshJob < Minitest::Test
     Resque::StuckQueue.redis.flushall
   end
 
-  def teardown
-    Resque::StuckQueue.reset!
-    Resque::StuckQueue.config.clear
-  end
-
   def test_will_trigger_with_unrefreshing_custom_heartbeat_job 
     # it will trigger because the key will be unrefreshed, hence 'old' and will always trigger.
     puts "#{__method__}"
     Resque::StuckQueue.config[:refresh_job] = proc { nil } # does not refresh global key
     @triggered = false
-    Resque::StuckQueue.config[:handler] = proc { @triggered = true }
+    Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
     start_and_stop_loops_after(3)
     assert @triggered, "will trigger because global key will be old"
   end
@@ -33,7 +29,7 @@ class TestYourOwnRefreshJob < Minitest::Test
     begin
       Resque::StuckQueue.config[:refresh_job] = proc { raise 'bad proc doc' } # does not refresh global key
       @triggered = false
-      Resque::StuckQueue.config[:handler] = proc { @triggered = true }
+      Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
       start_and_stop_loops_after(3)
       assert false, "should not succeed with bad refresh_job"
     rescue

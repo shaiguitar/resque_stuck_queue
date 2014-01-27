@@ -22,7 +22,7 @@ class TestLagTime < Minitest::Test
     Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
     Resque::StuckQueue.config[:heartbeat] = 1
     @lagtime = 0
-    Resque::StuckQueue.config[:handler] = proc { |queue_name, lagtime| @lagtime = lagtime }
+    Resque::StuckQueue.config[:triggered_handler] = proc { |queue_name, lagtime| @lagtime = lagtime }
     start_and_stop_loops_after(5)
 
     # check handler did get called

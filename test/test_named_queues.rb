@@ -28,7 +28,6 @@ class TestNamedQueues < Minitest::Test
   def test_has_custom_queues
     puts "#{__method__}"
     Resque::StuckQueue.config[:queues] = [:foo,:bar]
-    start_and_stop_loops_after(2)
     assert Resque::StuckQueue.heartbeat_keys.include?("foo:resque-stuck-queue"), 'has global keys'
   end
 
@@ -38,7 +37,7 @@ class TestNamedQueues < Minitest::Test
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:queues] = [:custom_queue_name]
     @triggered = false
-    Resque::StuckQueue.config[:handler] = proc { |queue_name| @triggered = queue_name }
+    Resque::StuckQueue.config[:triggered_handler] = proc { |queue_name| @triggered = queue_name }
     Resque::StuckQueue.start_in_background
 
     # job gets enqueued successfully
@@ -56,7 +55,7 @@ class TestNamedQueues < Minitest::Test
     Resque::StuckQueue.config[:queues] = [:custom_queue_name, :diff_one]
     assert Resque::StuckQueue.heartbeat_keys.include?("custom_queue_name:resque-stuck-queue"), 'has global keys'
     @triggered = false
-    Resque::StuckQueue.config[:handler] = proc { @triggered = true }
+    Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
     @resque_pid = run_resque("custom_queue_name")
     Resque::StuckQueue.start_in_background
     sleep 2 # allow timeout to trigger
@@ -64,6 +63,34 @@ class TestNamedQueues < Minitest::Test
     # check handler did not get called
     assert_equal @triggered, false
   end
+
+  def test_triggers_once_and_then_recovers
+    # FIXME test refactoring wrong place for this test.
+    puts "#{__method__}"
+
+    Resque::StuckQueue.config[:trigger_timeout] = 2
+    Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:queues] = [:app]
+
+    @triggered = 0
+    @recovered = 0
+    Resque::StuckQueue.config[:triggered_handler] = proc { @triggered += 1 }
+    Resque::StuckQueue.config[:recovered_handler] = proc { @recovered += 1 }
+
+    Thread.new {
+      # mock a job going through after we trigger :recovered so we'll w/o doing a run_resque
+      Thread.current.abort_on_exception = true
+      sleep 3
+      Resque::StuckQueue.redis.set(Resque::StuckQueue.heartbeat_key_for(:app), Time.now.to_i)
+    }
+    start_and_stop_loops_after(4)
+
+    # check handler did get called ONCE
+    assert_equal @recovered, 1
+    assert_equal @triggered, 1
+  end
+
+
 
 end
 

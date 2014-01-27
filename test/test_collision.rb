@@ -39,7 +39,7 @@ class TestCollision < Minitest::Test
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
     Resque::StuckQueue.config[:trigger_timeout] = 3
-    Resque::StuckQueue.config[:handler] = proc { Resque::StuckQueue.redis.incr("test-incr-key") }
+    Resque::StuckQueue.config[:triggered_handler] = proc { Resque::StuckQueue.redis.incr("test-incr-key") }
     Resque::StuckQueue.start
   end
 

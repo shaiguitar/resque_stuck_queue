@@ -10,10 +10,6 @@ class TestConfig < Minitest::Test
     Resque::StuckQueue.config[:abort_on_exception] = true
   end
 
-  def teardown
-    Resque::StuckQueue.reset!
-  end
-
   def test_config_has_descriptions
     c = Resque::StuckQueue::Config.new
     assert c.description_for(:logger) =~ /Logger/, "has descriptions"

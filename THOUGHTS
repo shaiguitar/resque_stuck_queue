@@ -16,3 +16,5 @@ also, if one queue is bad, does it trigger other queue's handlers? write some te
 woes of redis namespace, in regards to Awsm.redis != Resque.redis etc. (which is important for setting the key through @redis)
 
 with lag time, it will continue to trigger, for every heartbeat time it's supposed to tick, find some way to do that, and then maybe add some resolved handler/proc?
+
+rm redis locking (since it works by keys now, no need for it, recover/trigger ping pong).

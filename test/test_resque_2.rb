@@ -28,7 +28,7 @@ if !ENV['RESQUE_2'].nil?
      Resque::StuckQueue.config[:abort_on_exception] = true
      Resque::StuckQueue.config[:trigger_timeout] = 5
      Resque::StuckQueue.config[:logger] = Logger.new($stdout)
-     Resque::StuckQueue.config[:handler] = proc { Redis.new.incr("test-incr-key") }
+     Resque::StuckQueue.config[:triggered_handler] = proc { Redis.new.incr("test-incr-key") }
      Resque::StuckQueue.config[:redis] = Redis.new
 
      #binding.pry
