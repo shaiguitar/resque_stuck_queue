@@ -24,9 +24,15 @@ After firing the proc, it will continue to monitor the queue, but won't call the
 
 By calling the recovered proc, it will then complain again the next time the lag is found.
 
-## Usage
+## Configuration Options
 
-Configure it first. Optional settings are below. You'll most likely at the least want to tune `:triggered_handler`,`:heartbeat` and `:trigger_timeout` settings.
+Configure it first via something like:
+
+<pre>
+  Resque::StuckQueue.config[:triggered_handler] = proc { send_email }
+</pre>
+
+Configuration settings are below. You'll most likely at the least want to tune `:triggered_handler`,`:heartbeat` and `:trigger_timeout` settings.
 
 <pre>
 triggered_handler:
@@ -72,7 +78,7 @@ refresh_job:
 
 </pre>
 
-Then start it:
+To start it:
 
 <pre>
 Resque::StuckQueue.start                # blocking
