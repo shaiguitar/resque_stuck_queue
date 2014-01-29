@@ -25,13 +25,8 @@ module Resque
       end
 
       def redis
-        @redis ||= (config[:redis] || Resque.redis)
-      end
-
-      def redis=(rds)
-        # for resq2 tests
-        @redis = rds
-        Resque.redis = @redis
+        @redis ||= (config[:redis] || raise(Config::NoConfigError, "Must configure a redis instance to use. Please set a Redis or Redis::Namespace."))
+        HeartbeatJob.redis = @redis
       end
 
       def heartbeat_key_for(queue)
@@ -142,7 +137,7 @@ module Resque
           config[:heartbeat_job].call
         else
           queues.each do |queue_name|
-            Resque.enqueue_to(queue_name, HeartbeatJob, [heartbeat_key_for(queue_name), redis.client.host, redis.client.port])
+            Resque.enqueue_to(queue_name, HeartbeatJob, heartbeat_key_for(queue_name))
           end
         end
       end

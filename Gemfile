@@ -1,5 +1,7 @@
 source 'https://rubygems.org'
 
+gemspec
+
 if ENV['RESQUE_2']
 # resque 2
   gem 'resque', :git => "https://github.com/engineyard/resque.git"

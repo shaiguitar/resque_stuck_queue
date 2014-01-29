@@ -37,7 +37,7 @@ class TestIntegration < Minitest::Test
   end
 
   def setup
-    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.config[:redis] = Redis.new
     Resque::StuckQueue.redis.flushall
     Resque::StuckQueue.config[:abort_on_exception] = true
     self.class.run_resque_before_all

@@ -5,7 +5,7 @@ class TestCollision < Minitest::Test
   include TestHelper
 
   def setup
-    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.config[:redis] = Redis.new
     Resque::StuckQueue.redis.flushall
   end
 

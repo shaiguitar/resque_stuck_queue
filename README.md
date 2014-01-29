@@ -41,7 +41,7 @@ triggered_handler:
 	Resque::StuckQueue.config[:triggered_handler] = proc { |queue_name, lagtime| send_email('queue #{queue_name} isnt working, aaah the daemons') }
 
 recovered_handler:
-	set to what gets triggered when resque-stuck-queue has triggered a problem, but then detects the queue went back down to functioning well again (it wont trigger again until it has recovered).
+	set to what gets triggered when resque-stuck-queue has triggered a problem, but then detects the queue went back down to functioning well again(it wont trigger again until it has recovered).
 	Example:
 	Resque::StuckQueue.config[:recovered_handler] = proc { |queue_name, lagtime| send_email('phew, queue #{queue_name} is ok') }
 
@@ -56,7 +56,7 @@ trigger_timeout:
 	Resque::StuckQueue.config[:trigger_timeout] = 55.minutes
 
 redis:
-	set the Redis instance StuckQueue will use
+	set the Redis StuckQueue will use. Either a Redis or Redis::Namespace instance.
 
 heartbeat_key:
 	optional, name of keys to keep track of the last good resque heartbeat time
@@ -75,7 +75,6 @@ abort_on_exception:
 
 heartbeat_job:
 	optional, your own custom refreshing job. if you are using something other than resque
-
 </pre>
 
 To start it:

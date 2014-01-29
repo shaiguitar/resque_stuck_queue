@@ -12,7 +12,7 @@ class TestLagTime < Minitest::Test
   include TestHelper
 
   def setup
-    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.config[:redis] = Redis.new
     Resque::StuckQueue.redis.flushall
     Resque::StuckQueue.config[:abort_on_exception] = true
   end

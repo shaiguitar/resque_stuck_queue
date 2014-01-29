@@ -10,7 +10,7 @@ class TestYourOwnRefreshJob < Minitest::Test
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
     Resque::StuckQueue.config[:heartbeat_job] = nil
-    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.config[:redis] = Redis.new
     Resque::StuckQueue.redis.flushall
   end
 

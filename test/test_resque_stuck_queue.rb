@@ -12,10 +12,15 @@ class TestResqueStuckQueue < Minitest::Test
   def setup
     puts "#{__method__}"
     # clean previous test runs
-    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.config[:redis] = Redis.new
     Resque::StuckQueue.redis.flushall
     Resque::StuckQueue.config[:heartbeat]   = 1 # seconds
     Resque::StuckQueue.config[:abort_on_exception] = true
+  end
+
+  def test_watcher_and_heartbeat_redis_are_the_same
+    # to avoid namespace collisions
+    assert_equal Resque::StuckQueue.redis, Resque::StuckQueue::HeartbeatJob.redis
   end
 
   def test_configure_heartbeat_key

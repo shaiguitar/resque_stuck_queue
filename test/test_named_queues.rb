@@ -8,7 +8,7 @@ class TestNamedQueues < Minitest::Test
     Resque::StuckQueue.config[:trigger_timeout] = 1
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
-    Resque::StuckQueue.redis = Redis.new
+    Resque::StuckQueue.config[:redis] = Redis.new
     Resque::StuckQueue.redis.flushall
   end
 
