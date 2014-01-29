@@ -6,7 +6,6 @@ require 'pry'
 $:.unshift(".")
 require 'resque_stuck_queue'
 require File.join(File.expand_path(File.dirname(__FILE__)), "resque", "set_redis_key")
-require File.join(File.expand_path(File.dirname(__FILE__)), "resque", "refresh_latest_timestamp")
 require File.join(File.expand_path(File.dirname(__FILE__)), "test_helper")
 
 class TestIntegration < Minitest::Test
@@ -88,7 +87,7 @@ class TestIntegration < Minitest::Test
     Resque::StuckQueue.config[:heartbeat] = 1
 
     begin
-      Resque::StuckQueue.config[:refresh_job] = proc { Resque.enqueue(RefreshLatestTimestamp, Resque::StuckQueue.heartbeat_key_for(:app)) }
+      Resque::StuckQueue.config[:heartbeat_job] = proc { Resque.enqueue_to(:app, Resque::StuckQueue::HeartbeatJob, Resque::StuckQueue.heartbeat_key_for(:app)) }
       @triggered = false
       Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
       start_and_stop_loops_after(4)

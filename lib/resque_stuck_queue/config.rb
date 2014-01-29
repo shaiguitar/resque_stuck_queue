@@ -25,7 +25,7 @@ module Resque
         :logger             => "optional, pass a Logger. Default a ruby logger will be instantiated. Needs to respond to that interface.",
         :queues             => "optional, monitor specific queues you want to send a heartbeat/monitor to. default is :app",
         :abort_on_exception => "optional, if you want the resque-stuck-queue threads to explicitly raise, default is false",
-        :refresh_job        => "optional, your own custom refreshing job. if you are using something other than resque",
+        :heartbeat_job        => "optional, your own custom refreshing job. if you are using something other than resque",
       }
 
       OPTIONS = OPTIONS_DESCRIPTIONS.keys

@@ -5,7 +5,6 @@ require 'pry'
 $:.unshift(".")
 require 'resque_stuck_queue'
 require File.join(File.expand_path(File.dirname(__FILE__)), "resque", "set_redis_key")
-require File.join(File.expand_path(File.dirname(__FILE__)), "resque", "refresh_latest_timestamp")
 require File.join(File.expand_path(File.dirname(__FILE__)), "test_helper")
 
 class TestLagTime < Minitest::Test

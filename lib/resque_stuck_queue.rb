@@ -1,5 +1,6 @@
 require "resque_stuck_queue/version"
 require "resque_stuck_queue/config"
+require "resque_stuck_queue/heartbeat_job"
 
 # TODO move this require into a configurable?
 require 'resque'
@@ -75,8 +76,8 @@ module Resque
 
         Redis::Classy.db = redis if Redis::Classy.db.nil?
 
-        enqueue_repeating_refresh_job
-        setup_checker_thread
+        setup_heartbeat_thread
+        setup_watcher_thread
 
         # fo-eva.
         @threads.map(&:join)
@@ -121,14 +122,14 @@ module Resque
 
       private
 
-      def enqueue_repeating_refresh_job
+      def setup_heartbeat_thread
         @threads << Thread.new do
           Thread.current.abort_on_exception = config[:abort_on_exception]
           logger.info("Starting heartbeat thread")
           while @running
             # we want to go through resque jobs, because that's what we're trying to test here:
             # ensure that jobs get executed and the time is updated!
-            logger.info("Sending refresh jobs")
+            logger.info("Sending heartbeat jobs")
             enqueue_jobs
             wait_for_it
           end
@@ -136,17 +137,17 @@ module Resque
       end
 
       def enqueue_jobs
-        if config[:refresh_job]
-          # FIXME config[:refresh_job] with mutliple queues is bad semantics
-          config[:refresh_job].call
+        if config[:heartbeat_job]
+          # FIXME config[:heartbeat_job] with mutliple queues is bad semantics
+          config[:heartbeat_job].call
         else
           queues.each do |queue_name|
-            Resque.enqueue_to(queue_name, RefreshLatestTimestamp, [heartbeat_key_for(queue_name), redis.client.host, redis.client.port])
+            Resque.enqueue_to(queue_name, HeartbeatJob, [heartbeat_key_for(queue_name), redis.client.host, redis.client.port])
           end
         end
       end
 
-      def setup_checker_thread
+      def setup_watcher_thread
         @threads << Thread.new do
           Thread.current.abort_on_exception = config[:abort_on_exception]
           logger.info("Starting checker thread")
@@ -262,12 +263,3 @@ module Resque
   end
 end
 
-class RefreshLatestTimestamp
-  def self.perform(args)
-    timestamp_key = args[0]
-    host = args[1]
-    port = args[2]
-    r = Redis.new(:host => host, :port => port)
-    r.set(timestamp_key, Time.now.to_i)
-  end
-end

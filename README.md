@@ -73,7 +73,7 @@ queues:
 abort_on_exception:
 	optional, if you want the resque-stuck-queue threads to explicitly raise, default is false
 
-refresh_job:
+heartbeat_job:
 	optional, your own custom refreshing job. if you are using something other than resque
 
 </pre>
@@ -142,7 +142,7 @@ class CustomJob
   end
 end
 
-Resque::StuckQueue.config[:refresh_job] = proc {
+Resque::StuckQueue.config[:heartbeat_job] = proc {
   # or however else you enque your custom job, Sidekiq::Client.enqueue(CustomJob), whatever, etc.
   CustomJob.perform_async
 }
