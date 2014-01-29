@@ -136,17 +136,6 @@ module Resque
         end
       end
 
-      def enqueue_jobs
-        if config[:heartbeat_job]
-          # FIXME config[:heartbeat_job] with mutliple queues is bad semantics
-          config[:heartbeat_job].call
-        else
-          queues.each do |queue_name|
-            Resque.enqueue_to(queue_name, HeartbeatJob, [heartbeat_key_for(queue_name), redis.client.host, redis.client.port])
-          end
-        end
-      end
-
       def setup_watcher_thread
         @threads << Thread.new do
           Thread.current.abort_on_exception = config[:abort_on_exception]
@@ -171,6 +160,19 @@ module Resque
           end
         end
       end
+
+      def enqueue_jobs
+        if config[:heartbeat_job]
+          # FIXME config[:heartbeat_job] with mutliple queues is bad semantics
+          config[:heartbeat_job].call
+        else
+          queues.each do |queue_name|
+            Resque.enqueue_to(queue_name, HeartbeatJob, [heartbeat_key_for(queue_name), redis.client.host, redis.client.port])
+          end
+        end
+      end
+
+
 
       def last_successful_heartbeat(queue_name)
         time_set = read_from_redis(heartbeat_key_for(queue_name))
