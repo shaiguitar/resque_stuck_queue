@@ -142,7 +142,7 @@ class CustomJob
   end
 end
 
-Resque::StuckQueue.config[:refresh_job] = proc {
+Resque::StuckQueue.config[:heartbeat_job] = proc {
   # or however else you enque your custom job, Sidekiq::Client.enqueue(CustomJob), whatever, etc.
   CustomJob.perform_async
 }
