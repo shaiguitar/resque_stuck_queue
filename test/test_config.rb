@@ -8,6 +8,11 @@ class TestConfig < Minitest::Test
     Resque::StuckQueue.config[:trigger_timeout] = 1
     Resque::StuckQueue.config[:heartbeat] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
+    Resque::StuckQueue.config[:redis] = Redis.new
+  end
+
+  def teardown
+    Resque::StuckQueue.reset!
   end
 
   def test_config_has_descriptions
@@ -25,10 +30,21 @@ class TestConfig < Minitest::Test
     puts "#{__method__}"
     begin
       Resque::StuckQueue.config[:logger] = Logger.new($stdout)
-      start_and_stop_loops_after(2)
+      start_and_stop_loops_after(1)
       assert true, "should not have raised"
-    rescue
-      assert false, "should have succeeded with good logger"
+    rescue => e
+      assert false, "should have succeeded with good logger: #{e.inspect}\n#{e.backtrace.join("\n")}"
+    end
+  end
+
+  def test_must_set_redis
+    puts "#{__method__}"
+    Resque::StuckQueue.config[:redis] = nil
+    begin
+      start_and_stop_loops_after(1)
+      assert false, "redis cannot be nil"
+    rescue Resque::StuckQueue::Config::NoConfigError => e
+      assert true, "redis cannot be nil: #{e.inspect}\n#{e.backtrace.join("\n")}"
     end
   end
 
