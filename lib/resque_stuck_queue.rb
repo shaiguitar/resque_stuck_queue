@@ -1,13 +1,13 @@
 require "resque_stuck_queue/version"
 require "resque_stuck_queue/config"
 require "resque_stuck_queue/heartbeat_job"
+require "resque_stuck_queue/signals"
 
 # TODO move this require into a configurable?
 require 'resque'
 
 # TODO rm redis-mutex dep and just do the setnx locking here
 require 'redis-mutex'
-
 
 module Resque
   module StuckQueue
@@ -39,7 +39,7 @@ module Resque
 
       def triggered_key_for(queue)
         if config[:triggered_key]
-          "#{queue}:#{self.configconfig[:triggered_key]}"
+          "#{queue}:#{self.config[:triggered_key]}"
         else
           "#{queue}:#{TRIGGERED_KEY}"
         end
@@ -67,6 +67,8 @@ module Resque
         @threads = []
         config.validate_required_keys!
         config.freeze
+
+        Signals.enable!
 
         log_starting_info
 

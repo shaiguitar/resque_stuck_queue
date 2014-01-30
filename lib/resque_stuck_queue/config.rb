@@ -27,6 +27,7 @@ module Resque
         :queues             => "optional, monitor specific queues you want to send a heartbeat/monitor to. default is :app",
         :abort_on_exception => "optional, if you want the resque-stuck-queue threads to explicitly raise, default is false",
         :heartbeat_job      => "optional, your own custom refreshing job. if you are using something other than resque",
+        :enable_signals     => "optional, allow resque::stuck's signal_handlers",
       }
 
       OPTIONS = OPTIONS_DESCRIPTIONS.keys
