@@ -90,8 +90,6 @@ class TestNamedQueues < Minitest::Test
     assert_equal @triggered, 1
   end
 
-
-
 end
 
 

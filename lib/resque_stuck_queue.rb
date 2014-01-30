@@ -39,7 +39,7 @@ module Resque
 
       def triggered_key_for(queue)
         if config[:triggered_key]
-          "#{queue}:#{config[:triggered_key]}"
+          "#{queue}:#{self.configconfig[:triggered_key]}"
         else
           "#{queue}:#{TRIGGERED_KEY}"
         end
@@ -67,6 +67,8 @@ module Resque
         @threads = []
         config.validate_required_keys!
         config.freeze
+
+        log_starting_info
 
         reset_keys
 
@@ -232,6 +234,10 @@ module Resque
         logger.info("handler #{type} for #{queue_name} crashed: #{e.inspect}")
         logger.info("\n#{e.backtrace.join("\n")}")
         force_stop!
+      end
+
+      def log_starting_info
+        logger.info("Starting StuckQueue with config: #{self.config.inspect}")
       end
 
       def log_checker_info(queue_name)
