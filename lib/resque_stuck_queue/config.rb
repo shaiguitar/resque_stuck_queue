@@ -41,10 +41,19 @@ module Resque
         super(k)
       end
 
+      REQUIRED_KEYS = [:redis]
+      def validate_required_keys!
+        REQUIRED_KEYS.each do |k|
+          if self[k].nil?
+            raise NoConfigError, "You must set config[:#{k}]"
+          end
+        end
+      end
+
       class NoConfigError < StandardError; end
 
       def validate_key_exists!(k)
-        if ! OPTIONS.include?(k)
+        if !OPTIONS.include?(k)
           raise NoConfigError, "no such config key #{k} exists!"
         end
       end

@@ -45,10 +45,10 @@ class TestIntegration < Minitest::Test
   end
 
   def teardown
+    Resque::StuckQueue.reset!
     if self.class.tests_done?
       hax_kill_resque
       Process.waitall
-      return
     end
   end
 

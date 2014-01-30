@@ -25,7 +25,7 @@ module Resque
       end
 
       def redis
-        @redis ||= (config[:redis] || raise(Config::NoConfigError, "Must configure a redis instance to use. Please set a Redis or Redis::Namespace."))
+        @redis ||= config[:redis]
         HeartbeatJob.redis = @redis
       end
 
@@ -65,6 +65,7 @@ module Resque
         @running = true
         @stopped = false
         @threads = []
+        config.validate_required_keys!
         config.freeze
 
         reset_keys
