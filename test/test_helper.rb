@@ -13,7 +13,7 @@ module TestHelper
   extend self
 
   def run_resque(queue_name = "*")
-    pid = fork { exec("export QUEUE=#{queue_name}; bundle exec rake --trace resque:work") }
+    pid = fork { exec("export INTERVAL=1 QUEUE=#{queue_name}; bundle exec rake --trace resque:work") }
     sleep 3 # wait for resque to boot up
     pid
   end

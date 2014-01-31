@@ -17,6 +17,8 @@ task :'resque:setup' do
   # https://github.com/resque/resque/issues/773
   # have the jobs loaded in memory
   Dir["./test/resque/*.rb"].each {|file| require file}
+  # load project
+  Dir["./lib/resque_stuck_queue.rb"].each {|file| require file}
 end
 
 require 'resque_scheduler/tasks'

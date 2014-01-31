@@ -55,6 +55,7 @@ class TestIntegration < Minitest::Test
   def test_resque_enqueues_a_job_does_not_trigger
     puts "#{__method__}"
 
+    Resque::Failure.clear
     Resque::StuckQueue.config[:trigger_timeout] = 10
     Resque::StuckQueue.config[:heartbeat] = 1
     @triggered = false
@@ -62,9 +63,8 @@ class TestIntegration < Minitest::Test
     start_and_stop_loops_after(5)
     Resque::StuckQueue.redis.del(SetRedisKey::NAME)
     Resque.enqueue_to(:app, SetRedisKey)
-    sleep 3
-    #assert_equal Resque::StuckQueue.redis.get(SetRedisKey::NAME), "1" # transient failure: resque picks up jobs at unpredectiple times?
-    # job ran successfully, so don't trigger
+    sleep 3 # job ran successfully, so don't trigger
+    assert_nil Resque::Failure.all, "Resque hearbeat job cant fail: #{Resque::Failure.all.inspect}"
     assert_equal @triggered, false
   end
 
@@ -85,6 +85,7 @@ class TestIntegration < Minitest::Test
 
     Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
     Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:redis] = Redis::Namespace.new(nil, :redis => Redis.new)
 
     begin
       Resque::StuckQueue.config[:heartbeat_job] = proc { Resque.enqueue_to(:app, Resque::StuckQueue::HeartbeatJob, Resque::StuckQueue.heartbeat_key_for(:app)) }
