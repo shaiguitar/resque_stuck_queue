@@ -7,7 +7,7 @@ module Resque
 
         def perform(*args)
           keyname,host,port,namespace = args
-          Redis::Namespace.new(namespace, :redis => Redis.new(:host => host, :port => port))
+          @redis = Redis::Namespace.new(namespace, :redis => Redis.new(:host => host, :port => port))
           @redis.set(keyname, Time.now.to_i)
         end
 
