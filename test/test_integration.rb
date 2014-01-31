@@ -58,6 +58,8 @@ class TestIntegration < Minitest::Test
     with_no_resque_failures do
       Resque::StuckQueue.config[:trigger_timeout] = 10
       Resque::StuckQueue.config[:heartbeat] = 1
+      Resque::StuckQueue.config[:redis] = Redis.new
+
       @triggered = false
       Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
       start_and_stop_loops_after(5)
@@ -72,6 +74,8 @@ class TestIntegration < Minitest::Test
     with_no_resque_failures do
       Resque::StuckQueue.config[:trigger_timeout] = 0
       Resque::StuckQueue.config[:heartbeat] = 1
+      Resque::StuckQueue.config[:redis] = Redis.new
+
       @triggered = false
       Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
       start_and_stop_loops_after(2)
@@ -86,7 +90,7 @@ class TestIntegration < Minitest::Test
     with_no_resque_failures do
       Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
       Resque::StuckQueue.config[:heartbeat] = 1
-      Resque::StuckQueue.config[:redis] = Redis::Namespace.new(nil, :redis => Redis.new)
+      Resque::StuckQueue.config[:redis] = Redis.new
 
       begin
         Resque::StuckQueue.config[:heartbeat_job] = proc { Resque.enqueue_to(:app, Resque::StuckQueue::HeartbeatJob, Resque::StuckQueue.heartbeat_key_for(:app)) }
