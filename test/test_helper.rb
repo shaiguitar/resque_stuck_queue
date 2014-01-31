@@ -18,6 +18,12 @@ module TestHelper
     pid
   end
 
+  def with_no_resque_failures(&blk)
+    Resque::Failure.clear
+    blk.call
+    assert_nil Resque::Failure.all, "Resque hearbeat job cant fail: #{Resque::Failure.all.inspect}"
+  end
+
   def hax_kill_resque
     # ugly, FIXME how to get pid of forked forked process. run_resque pid is incorrect.
    `ps aux |grep resque |awk '{print $2}' |xargs kill`

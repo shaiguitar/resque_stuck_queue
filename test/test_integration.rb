@@ -55,49 +55,51 @@ class TestIntegration < Minitest::Test
   def test_resque_enqueues_a_job_does_not_trigger
     puts "#{__method__}"
 
-    Resque::Failure.clear
-    Resque::StuckQueue.config[:trigger_timeout] = 10
-    Resque::StuckQueue.config[:heartbeat] = 1
-    @triggered = false
-    Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
-    start_and_stop_loops_after(5)
-    Resque::StuckQueue.redis.del(SetRedisKey::NAME)
-    Resque.enqueue_to(:app, SetRedisKey)
-    sleep 3 # job ran successfully, so don't trigger
-    assert_nil Resque::Failure.all, "Resque hearbeat job cant fail: #{Resque::Failure.all.inspect}"
-    assert_equal @triggered, false
+    with_no_resque_failures do
+      Resque::StuckQueue.config[:trigger_timeout] = 10
+      Resque::StuckQueue.config[:heartbeat] = 1
+      @triggered = false
+      Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
+      start_and_stop_loops_after(5)
+      sleep 3 # job ran successfully, so don't trigger
+      assert_equal @triggered, false
+    end
   end
 
   def test_resque_does_not_enqueues_a_job_does_trigger
     puts "#{__method__}"
 
-    Resque::StuckQueue.config[:trigger_timeout] = 0
-    Resque::StuckQueue.config[:heartbeat] = 1
-    @triggered = false
-    Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
-    start_and_stop_loops_after(2)
-    # check handler did get called
-    assert_equal @triggered, true
+    with_no_resque_failures do
+      Resque::StuckQueue.config[:trigger_timeout] = 0
+      Resque::StuckQueue.config[:heartbeat] = 1
+      @triggered = false
+      Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
+      start_and_stop_loops_after(2)
+      # check handler did get called
+      assert_equal @triggered, true
+    end
   end
 
   def test_has_settable_custom_hearbeat_job
     puts "#{__method__}"
 
-    Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
-    Resque::StuckQueue.config[:heartbeat] = 1
-    Resque::StuckQueue.config[:redis] = Redis::Namespace.new(nil, :redis => Redis.new)
+    with_no_resque_failures do
+      Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
+      Resque::StuckQueue.config[:heartbeat] = 1
+      Resque::StuckQueue.config[:redis] = Redis::Namespace.new(nil, :redis => Redis.new)
 
-    begin
-      Resque::StuckQueue.config[:heartbeat_job] = proc { Resque.enqueue_to(:app, Resque::StuckQueue::HeartbeatJob, Resque::StuckQueue.heartbeat_key_for(:app)) }
-      @triggered = false
-      Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
-      start_and_stop_loops_after(4)
+      begin
+        Resque::StuckQueue.config[:heartbeat_job] = proc { Resque.enqueue_to(:app, Resque::StuckQueue::HeartbeatJob, Resque::StuckQueue.heartbeat_key_for(:app)) }
+        @triggered = false
+        Resque::StuckQueue.config[:triggered_handler] = proc { @triggered = true }
+        start_and_stop_loops_after(4)
 
-      sleep 3 # allow trigger
-      assert true, "should not have raised"
-      assert @triggered, "should have triggered"
-    rescue => e
-      assert false, "should have succeeded with good refresh_job.\n #{e.inspect}"
+        sleep 3 # allow trigger
+        assert true, "should not have raised"
+        assert @triggered, "should have triggered"
+      rescue => e
+        assert false, "should have succeeded with good refresh_job.\n #{e.inspect}"
+      end
     end
   end
 
