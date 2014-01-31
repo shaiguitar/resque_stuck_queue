@@ -77,6 +77,8 @@ module Resque
 
         Redis::Classy.db = redis if Redis::Classy.db.nil?
 
+        pretty_process_name
+
         setup_heartbeat_thread
         setup_watcher_thread
 
@@ -266,6 +268,11 @@ module Resque
       def max_wait_time
         config[:trigger_timeout] || TRIGGER_TIMEOUT
       end
+
+      def pretty_process_name
+        $0 = "rake --trace resque:stuck_queue #{redis.inspect} QUEUES=#{queues.join(",")}"
+      end
+
     end
   end
 end
