@@ -3,6 +3,8 @@ require "resque_stuck_queue/config"
 require "resque_stuck_queue/heartbeat_job"
 require "resque_stuck_queue/signals"
 
+require 'redis-namespace'
+
 # TODO move this require into a configurable?
 require 'resque'
 
@@ -26,7 +28,6 @@ module Resque
 
       def redis
         @redis ||= config[:redis]
-        HeartbeatJob.redis = @redis
       end
 
       def heartbeat_key_for(queue)
@@ -142,7 +143,9 @@ module Resque
           config[:heartbeat_job].call
         else
           queues.each do |queue_name|
-            Resque.enqueue_to(queue_name, HeartbeatJob, heartbeat_key_for(queue_name))
+            # Redis::Namespace.new support as well as Redis.new
+            namespace = redis.respond_to?(:namespace) ? redis.namespace : nil
+            Resque.enqueue_to(queue_name, HeartbeatJob, [heartbeat_key_for(queue_name), redis.client.host, redis.client.port, namespace ])
           end
         end
       end

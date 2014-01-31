@@ -18,11 +18,6 @@ class TestResqueStuckQueue < Minitest::Test
     Resque::StuckQueue.config[:abort_on_exception] = true
   end
 
-  def test_watcher_and_heartbeat_redis_are_the_same
-    # to avoid namespace collisions
-    assert_equal Resque::StuckQueue.redis, Resque::StuckQueue::HeartbeatJob.redis
-  end
-
   def test_configure_heartbeat_key
     puts "#{__method__}"
     assert_nil Resque::StuckQueue.redis.get("it-is-configurable"), "global key should not be set"
