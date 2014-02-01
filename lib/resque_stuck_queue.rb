@@ -182,6 +182,7 @@ module Resque
         if time_set
           time_set
         else
+          logger.info("manually refreshing #{queue_name} for :first_time")
           manual_refresh(queue_name, :first_time)
          end.to_i
       end

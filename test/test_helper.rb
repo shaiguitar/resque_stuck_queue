@@ -38,3 +38,13 @@ module TestHelper
   end
 
 end
+
+# http://stackoverflow.com/questions/9346101/how-to-get-stack-trace-from-a-testunittestcase
+def MiniTest.filter_backtrace(bt)
+  bt
+end
+
+# hax ensure previous test runs that raised didn't leave a resque process runing beforehand
+unless @before_all_hax_kill_resque
+  TestHelper.hax_kill_resque && @before_all_hax_kill_resque=true
+end
