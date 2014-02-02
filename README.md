@@ -24,13 +24,71 @@ After firing the proc, it will continue to monitor the queue, but won't call the
 
 By calling the recovered proc, it will then complain again the next time the lag is found.
 
-## Configuration Options
+## Usage
 
-Configure it first via something like:
+Run this as a daemon somewhere alongside the app/in your setup. You'll need to configure it to your needs first:
+
+Put something like this in `config/initializers/resque-stuck-queue.rb`:
 
 <pre>
-  Resque::StuckQueue.config[:triggered_handler] = proc { send_email }
+require 'resque_stuck_queue' # or require 'resque/stuck_queue'
+require 'logger'
+
+# change to decent values that make sense for you
+Resque::StuckQueue.config[:heartbeat]           = 10.seconds
+Resque::StuckQueue.config[:trigger_timeout]     = 30.seconds
+
+# create a sync/unbuffered log
+logpath = Rails.root.join('log', 'resque_stuck_queue.log')
+logfile = File.open(logpath, "a")
+logfile.sync = true
+logger = Logger.new(logfile)
+logger.formatter = Logger::Formatter.new
+Resque::StuckQueue.config[:logger] = logger
+
+Resque::StuckQueue.config[:redis]  = YOUR_REDIS
+
+# which queues to monitor
+Resque::StuckQueue.config[:queues] = [:app, :custom_queue]
+
+# handler for when a resque queue is being problematic
+Resque::StuckQueue.config[:triggered_handler] = proc { |bad_queue, lagtime|
+  msg = "[BAD] AWSM #{Rails.env}'s Resque #{bad_queue} queue lagging job execution by #{lagtime} seconds."
+  send_email(msg)
+}
+
+# handler for when a resque queue recovers
+Resque::StuckQueue.config[:recovered_handler] = proc { |good_queue, lagtime|
+  msg = "[GOOD] AWSM #{Rails.env}'s Resque #{good_queue} queue lagging job execution by #{lagtime} seconds."
+  send_email(msg)
+}
+
 </pre>
+
+Then create a task to run it as a daemon (similar to how the resque rake job is implemented):
+
+<pre>
+
+# put this in lib/tasks/resque_stuck_queue.rb
+
+namespace :resque do
+  desc "Start a Resque-stuck daemon"
+  # :environment dep task should load the config via the initializer
+  task :stuck_queue => :environment do
+    Resque::StuckQueue.start
+  end
+
+end
+
+</pre>
+
+then run it via god, monit or whatever:
+
+<pre>
+$ bundle exec rake --trace resque:stuck_queue # outdated god config - https://gist.github.com/shaiguitar/298935953d91faa6bd4e
+</pre>
+
+## Configuration Options
 
 Configuration settings are below. You'll most likely at the least want to tune `:triggered_handler`,`:heartbeat` and `:trigger_timeout` settings.
 
@@ -89,42 +147,6 @@ Stopping it consists of the same idea:
 <pre>
 Resque::StuckQueue.stop                 # this will block until the threads end their current iteration
 Resque::StuckQueue.force_stop!          # force kill those threads and let's move on
-</pre>
-
-## Deployment/Integration
-
-* Include this in the app in a config initializer of some sort.
-
-Note though, the resque-stuck threads will live alongside the app server process so you will need to explicitely handle `start` _and_ `stop`. If you're deployed in a forking-server environment and the whatever process has this does not get restarted the threads will keep on going indefinitely.
-
-* Run this as a daemon somewhere alongside the app/in your setup.
-
-Contrived example:
-
-<pre>
-
-# put this in lib/tasks/resque_stuck_queue.rb
-
-require 'resque_stuck_queue' # or require 'resque/stuck_queue'
-
-namespace :resque do
-  desc "Start a Resque-stuck daemon"
-  task :stuck_queue do
-
-    Resque::StuckQueue.config[:heartbeat] = 10.minutes
-    Resque::StuckQueue.config[:trigger_timeout] = 1.hour
-    Resque::StuckQueue.config[:triggered_handler] = proc { |queue_name| $stderr.puts("resque queue #{queue_name} wonky!") }
-
-    Resque::StuckQueue.start # blocking operation, daemon running
-  end
-end
-
-# then:
-
-$ bundle exec rake --trace resque:stuck_queue
-
-# you can run this under god for example @ https://gist.github.com/shaiguitar/298935953d91faa6bd4e
-
 </pre>
 
 ## Sidekiq/Other redis-based job queues
