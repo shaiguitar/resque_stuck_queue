@@ -6,6 +6,7 @@ class TestCollision < Minitest::Test
 
   def setup
     Resque::StuckQueue.config[:redis] = Redis.new
+    Resque::StuckQueue.config[:watcher_interval] = 1
     Resque::StuckQueue.redis.flushall
   end
 
@@ -36,7 +37,7 @@ class TestCollision < Minitest::Test
   private
 
   def run_resque_stuck_daemon
-    Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:heartbeat_interval] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
     Resque::StuckQueue.config[:trigger_timeout] = 3
     Resque::StuckQueue.config[:triggered_handler] = proc { Resque::StuckQueue.redis.incr("test-incr-key") }

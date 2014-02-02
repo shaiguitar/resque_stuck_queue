@@ -24,7 +24,8 @@ if !ENV['RESQUE_2'].nil?
 
      Resque::StuckQueue.config[:redis] = Redis.new
 
-     Resque::StuckQueue.config[:heartbeat] = 1
+     Resque::StuckQueue.config[:watcher_interval] = 1
+     Resque::StuckQueue.config[:heartbeat_interval] = 1
      Resque::StuckQueue.config[:abort_on_exception] = true
      Resque::StuckQueue.config[:trigger_timeout] = 5
      Resque::StuckQueue.config[:logger] = Logger.new($stdout)

@@ -5,8 +5,9 @@ class TestConfig < Minitest::Test
   include TestHelper
 
   def setup
+    Resque::StuckQueue.config[:watcher_interval] = 1
     Resque::StuckQueue.config[:trigger_timeout] = 1
-    Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:heartbeat_interval] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
     Resque::StuckQueue.config[:redis] = Redis.new
   end
@@ -48,6 +49,7 @@ class TestConfig < Minitest::Test
     end
   end
 
+  # FIXME
   def test_can_have_signals
     puts "#{__method__}"
     begin

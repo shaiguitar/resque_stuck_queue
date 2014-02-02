@@ -39,6 +39,7 @@ class TestIntegration < Minitest::Test
   def setup
     Resque::StuckQueue.config[:redis] = Redis.new
     Resque::StuckQueue.redis.flushall
+    Resque::StuckQueue.config[:watcher_interval] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
     self.class.run_resque_before_all
     self.class.tests_ran += 1
@@ -57,7 +58,7 @@ class TestIntegration < Minitest::Test
 
     with_no_resque_failures do
       Resque::StuckQueue.config[:trigger_timeout] = 10
-      Resque::StuckQueue.config[:heartbeat] = 1
+      Resque::StuckQueue.config[:heartbeat_interval] = 1
       Resque::StuckQueue.config[:redis] = Redis.new
 
       @triggered = false
@@ -73,7 +74,7 @@ class TestIntegration < Minitest::Test
 
     with_no_resque_failures do
       Resque::StuckQueue.config[:trigger_timeout] = 0
-      Resque::StuckQueue.config[:heartbeat] = 1
+      Resque::StuckQueue.config[:heartbeat_interval] = 1
       Resque::StuckQueue.config[:redis] = Redis.new
 
       @triggered = false
@@ -89,7 +90,7 @@ class TestIntegration < Minitest::Test
 
     with_no_resque_failures do
       Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
-      Resque::StuckQueue.config[:heartbeat] = 1
+      Resque::StuckQueue.config[:heartbeat_interval] = 1
       Resque::StuckQueue.config[:redis] = Redis.new
 
       begin

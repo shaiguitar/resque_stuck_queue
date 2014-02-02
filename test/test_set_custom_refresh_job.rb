@@ -7,7 +7,8 @@ class TestYourOwnRefreshJob < Minitest::Test
   def setup
     Resque::StuckQueue.reset!
     Resque::StuckQueue.config[:trigger_timeout] = 1
-    Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:heartbeat_interval] = 1
+    Resque::StuckQueue.config[:watcher_interval] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
     Resque::StuckQueue.config[:heartbeat_job] = nil
     Resque::StuckQueue.config[:redis] = Redis.new

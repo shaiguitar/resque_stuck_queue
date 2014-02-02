@@ -134,7 +134,7 @@ module Resque
             # ensure that jobs get executed and the time is updated!
             logger.info("Sending heartbeat jobs")
             enqueue_jobs
-            wait_for_it
+            wait_for_it(:heartbeat_interval)
           end
         end
       end
@@ -155,13 +155,13 @@ module Resque
       def setup_watcher_thread
         @threads << Thread.new do
           Thread.current.abort_on_exception = config[:abort_on_exception]
-          logger.info("Starting checker thread")
+          logger.info("Starting watcher thread")
           while @running
             mutex = Redis::Mutex.new('resque_stuck_queue_lock', block: 0)
             if mutex.lock
               begin
                 queues.each do |queue_name|
-                  log_checker_info(queue_name)
+                  log_watcher_info(queue_name)
                   if should_trigger?(queue_name)
                     trigger_handler(queue_name, :triggered)
                   elsif should_recover?(queue_name)
@@ -172,7 +172,7 @@ module Resque
                 mutex.unlock
               end
             end
-            wait_for_it
+            wait_for_it(:watcher_interval)
           end
         end
       end
@@ -248,7 +248,7 @@ module Resque
         logger.info("Starting StuckQueue with config: #{self.config.inspect}")
       end
 
-      def log_checker_info(queue_name)
+      def log_watcher_info(queue_name)
         logger.info("Lag time for #{queue_name} is #{lag_time(queue_name).inspect} seconds.")
         if triggered_ago = last_triggered(queue_name)
           logger.info("Last triggered for #{queue_name} is #{triggered_ago.inspect} seconds.")
@@ -262,8 +262,14 @@ module Resque
         redis.get(keyname)
       end
 
-      def wait_for_it
-        sleep config[:heartbeat] || HEARTBEAT_TIMEOUT
+      def wait_for_it(type)
+        if type == :heartbeat_interval
+          sleep config[:heartbeat_interval] || HEARTBEAT_INTERVAL
+        elsif type == :watcher_interval
+          sleep config[:watcher_interval]   || WATCHER_INTERVAL
+        else
+          raise 'Must sleep for :watcher_interval interval or :heartbeat_interval interval!'
+        end
       end
 
       def max_wait_time

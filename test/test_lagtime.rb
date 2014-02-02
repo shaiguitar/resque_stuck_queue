@@ -15,11 +15,12 @@ class TestLagTime < Minitest::Test
     Resque::StuckQueue.config[:redis] = Redis.new
     Resque::StuckQueue.redis.flushall
     Resque::StuckQueue.config[:abort_on_exception] = true
+    Resque::StuckQueue.config[:watcher_interval] = 1
   end
 
   def test_triggers_handler_with_lagtime
     Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
-    Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:heartbeat_interval] = 1
     @lagtime = 0
     Resque::StuckQueue.config[:triggered_handler] = proc { |queue_name, lagtime| @lagtime = lagtime }
     start_and_stop_loops_after(5)

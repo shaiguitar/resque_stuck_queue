@@ -6,9 +6,10 @@ class TestNamedQueues < Minitest::Test
 
   def setup
     Resque::StuckQueue.config[:trigger_timeout] = 1
-    Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:heartbeat_interval] = 1
     Resque::StuckQueue.config[:abort_on_exception] = true
     Resque::StuckQueue.config[:redis] = Redis.new
+    Resque::StuckQueue.config[:watcher_interval] = 1
     Resque::StuckQueue.redis.flushall
   end
 
@@ -34,7 +35,7 @@ class TestNamedQueues < Minitest::Test
   def test_resque_enqueues_a_job_with_resqueue_running_but_on_that_queue_does_trigger
     puts "#{__method__}"
     Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
-    Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:heartbeat_interval] = 1
     Resque::StuckQueue.config[:queues] = [:custom_queue_name]
     @triggered = false
     Resque::StuckQueue.config[:triggered_handler] = proc { |queue_name| @triggered = queue_name }
@@ -51,7 +52,7 @@ class TestNamedQueues < Minitest::Test
   def test_resque_enqueues_a_job_correct_queue_does_not_trigger
     puts "#{__method__}"
     Resque::StuckQueue.config[:trigger_timeout] = 2 # won't allow waiting too much and will complain (eg trigger) sooner than later
-    Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:heartbeat_interval] = 1
     Resque::StuckQueue.config[:queues] = [:custom_queue_name, :diff_one]
     assert Resque::StuckQueue.heartbeat_keys.include?("custom_queue_name:resque-stuck-queue"), 'has global keys'
     @triggered = false
@@ -69,7 +70,7 @@ class TestNamedQueues < Minitest::Test
     puts "#{__method__}"
 
     Resque::StuckQueue.config[:trigger_timeout] = 2
-    Resque::StuckQueue.config[:heartbeat] = 1
+    Resque::StuckQueue.config[:heartbeat_interval] = 1
     Resque::StuckQueue.config[:queues] = [:app]
 
     @triggered = 0

@@ -13,8 +13,9 @@ class TestResqueStuckQueue < Minitest::Test
     puts "#{__method__}"
     # clean previous test runs
     Resque::StuckQueue.config[:redis] = Redis.new
+    Resque::StuckQueue.config[:watcher_interval] = 1
     Resque::StuckQueue.redis.flushall
-    Resque::StuckQueue.config[:heartbeat]   = 1 # seconds
+    Resque::StuckQueue.config[:heartbeat_interval]   = 1 # seconds
     Resque::StuckQueue.config[:abort_on_exception] = true
   end
 

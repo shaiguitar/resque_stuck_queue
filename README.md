@@ -35,7 +35,7 @@ require 'resque_stuck_queue' # or require 'resque/stuck_queue'
 require 'logger'
 
 # change to decent values that make sense for you
-Resque::StuckQueue.config[:heartbeat]           = 10.seconds
+Resque::StuckQueue.config[:heartbeat_interval]           = 10.seconds
 Resque::StuckQueue.config[:trigger_timeout]     = 30.seconds
 
 # create a sync/unbuffered log
@@ -90,9 +90,10 @@ $ bundle exec rake --trace resque:stuck_queue # outdated god config - https://gi
 
 ## Configuration Options
 
-Configuration settings are below. You'll most likely at the least want to tune `:triggered_handler`,`:heartbeat` and `:trigger_timeout` settings.
+Configuration settings are below. You'll most likely at the least want to tune `:triggered_handler`,`:heartbeat_interval` and `:trigger_timeout` settings.
 
 <pre>
+
 triggered_handler:
 	set to what gets triggered when resque-stuck-queue will detect the latest heartbeat is older than the trigger_timeout time setting.
 	Example:
@@ -103,15 +104,20 @@ recovered_handler:
 	Example:
 	Resque::StuckQueue.config[:recovered_handler] = proc { |queue_name, lagtime| send_email('phew, queue #{queue_name} is ok') }
 
-heartbeat:
-	set to how often to push that 'heartbeat' job to refresh the latest time it worked.
+heartbeat_interval:
+	set to how often to push the 'heartbeat' job which will refresh the latest working time.
 	Example:
-	Resque::StuckQueue.config[:heartbeat] = 5.minutes
+	Resque::StuckQueue.config[:heartbeat_interval] = 5.minutes
+
+watcher_interval:
+	set to how often to check to see when the last time it worked was.
+	Example:
+	Resque::StuckQueue.config[:watcher_interval] = 1.minute
 
 trigger_timeout:
-	set to how much of a resque work lag you are willing to accept before being notified. note: take the :heartbeat setting into account when setting this timeout.
+	set to how much of a resque work lag you are willing to accept before being notified. note: take the :watcher_interval setting into account when setting this timeout.
 	Example:
-	Resque::StuckQueue.config[:trigger_timeout] = 55.minutes
+	Resque::StuckQueue.config[:trigger_timeout] = 9.minutes
 
 redis:
 	set the Redis StuckQueue will use. Either a Redis or Redis::Namespace instance.
@@ -126,13 +132,17 @@ logger:
 	optional, pass a Logger. Default a ruby logger will be instantiated. Needs to respond to that interface.
 
 queues:
-	optional, monitor specific queues you want to send a heartbeat/monitor to. default is :app
+	optional, monitor specific queues you want to send a heartbeat/monitor to. default is [:app]
 
 abort_on_exception:
 	optional, if you want the resque-stuck-queue threads to explicitly raise, default is false
 
 heartbeat_job:
 	optional, your own custom refreshing job. if you are using something other than resque
+
+enable_signals:
+	optional, allow resque::stuck's signal_handlers which do mostly nothing at this point.
+
 </pre>
 
 To start it:
