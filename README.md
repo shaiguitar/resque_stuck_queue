@@ -35,8 +35,24 @@ require 'resque_stuck_queue' # or require 'resque/stuck_queue'
 require 'logger'
 
 # change to decent values that make sense for you
-Resque::StuckQueue.config[:heartbeat_interval]           = 10.seconds
-Resque::StuckQueue.config[:trigger_timeout]     = 30.seconds
+Resque::StuckQueue.config[:heartbeat_interval]       = 10.seconds
+Resque::StuckQueue.config[:watcher_interval]         = 1.seconds
+Resque::StuckQueue.config[:trigger_timeout]          = 30.seconds
+
+# which queues to monitor
+Resque::StuckQueue.config[:queues]                   = [:app, :custom_queue]
+
+# handler for when a resque queue is being problematic
+Resque::StuckQueue.config[:triggered_handler]         = proc { |bad_queue, lagtime|
+  msg = "[BAD] AWSM #{Rails.env}'s Resque #{bad_queue} queue lagging job execution by #{lagtime} seconds."
+  send_email(msg)
+}
+
+# handler for when a resque queue recovers
+Resque::StuckQueue.config[:recovered_handler]         = proc { |good_queue, lagtime|
+  msg = "[GOOD] AWSM #{Rails.env}'s Resque #{good_queue} queue lagging job execution by #{lagtime} seconds."
+  send_email(msg)
+}
 
 # create a sync/unbuffered log
 logpath = Rails.root.join('log', 'resque_stuck_queue.log')
@@ -44,24 +60,10 @@ logfile = File.open(logpath, "a")
 logfile.sync = true
 logger = Logger.new(logfile)
 logger.formatter = Logger::Formatter.new
-Resque::StuckQueue.config[:logger] = logger
+Resque::StuckQueue.config[:logger]                    = logger
 
-Resque::StuckQueue.config[:redis]  = YOUR_REDIS
-
-# which queues to monitor
-Resque::StuckQueue.config[:queues] = [:app, :custom_queue]
-
-# handler for when a resque queue is being problematic
-Resque::StuckQueue.config[:triggered_handler] = proc { |bad_queue, lagtime|
-  msg = "[BAD] AWSM #{Rails.env}'s Resque #{bad_queue} queue lagging job execution by #{lagtime} seconds."
-  send_email(msg)
-}
-
-# handler for when a resque queue recovers
-Resque::StuckQueue.config[:recovered_handler] = proc { |good_queue, lagtime|
-  msg = "[GOOD] AWSM #{Rails.env}'s Resque #{good_queue} queue lagging job execution by #{lagtime} seconds."
-  send_email(msg)
-}
+# your own redis
+Resque::StuckQueue.config[:redis]                     = YOUR_REDIS
 
 </pre>
 

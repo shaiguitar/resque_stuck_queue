@@ -1,20 +1,4 @@
-other resources:
-
-  http://vitobotta.com/resque-automatically-kill-stuck-workers-retry-failed-jobs/#sthash.oQsaNeb5.dpbs
-  http://stackoverflow.com/questions/10757758/find-out-if-a-resque-job-is-still-running-and-kill-it-if-its-stuck
-
 ## TODOS
 
-add a 'resque_stuck_queue/tasks' bit? See tres eg
-add a trap{} to force_stop. ok for overwriting process's trap handlers? use config for that?
-
-fix skeleton recipe https://github.com/shaiguitar/resque_stuck_queue/blame/master/README.md#L103
-  raise appname, => :environment, log path
-
-investigate: why is temple getting triggered? how often? is the enqueing/checking taking too much time?
-also, if one queue is bad, does it trigger other queue's handlers? write some tests, asshole.
-woes of redis namespace, in regards to Awsm.redis != Resque.redis etc. (which is important for setting the key through @redis)
-
-with lag time, it will continue to trigger, for every heartbeat time it's supposed to tick, find some way to do that, and then maybe add some resolved handler/proc?
-
 rm redis locking (since it works by keys now, no need for it, recover/trigger ping pong).
+rm require resque?
