@@ -137,13 +137,13 @@ queues:
 	optional, monitor specific queues you want to send a heartbeat/monitor to. default is [:app]
 
 abort_on_exception:
-	optional, if you want the resque-stuck-queue threads to explicitly raise, default is false
+	optional, if you want the resque-stuck-queue threads to explicitly raise, default is true
 
 heartbeat_job:
 	optional, your own custom refreshing job. if you are using something other than resque
 
 enable_signals:
-	optional, allow resque::stuck's signal_handlers which do mostly nothing at this point.
+	optional, allow resque::stuck's signal_handlers which do mostly nothing at this point. possible future plan: log info, reopen log file, etc.
 
 </pre>
 
