@@ -29,7 +29,7 @@ module Resque
         :triggered_key      => "optional, name of keys to keep track of the last trigger time",
         :logger             => "optional, pass a Logger. Default a ruby logger will be instantiated. Needs to respond to that interface.",
         :queues             => "optional, monitor specific queues you want to send a heartbeat/monitor to. default is [:app]",
-        :abort_on_exception => "optional, if you want the resque-stuck-queue threads to explicitly raise, default is false",
+        :abort_on_exception => "optional, if you want the resque-stuck-queue threads to explicitly raise, default is true",
         :heartbeat_job      => "optional, your own custom refreshing job. if you are using something other than resque",
         :enable_signals     => "optional, allow resque::stuck's signal_handlers which do mostly nothing at this point.",
       }

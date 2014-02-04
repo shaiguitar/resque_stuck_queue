@@ -54,9 +54,17 @@ module Resque
         @queues ||= (config[:queues] || [:app])
       end
 
+      def abort_on_exception
+        if !config[:abort_on_exception].nil?
+          config[:abort_on_exception] # allow overriding w false
+        else
+          true # default
+        end
+      end
+
       def start_in_background
         Thread.new do
-          Thread.current.abort_on_exception = config[:abort_on_exception]
+          Thread.current.abort_on_exception = abort_on_exception
           self.start
         end
       end
@@ -127,7 +135,7 @@ module Resque
 
       def setup_heartbeat_thread
         @threads << Thread.new do
-          Thread.current.abort_on_exception = config[:abort_on_exception]
+          Thread.current.abort_on_exception = abort_on_exception
           logger.info("Starting heartbeat thread")
           while @running
             # we want to go through resque jobs, because that's what we're trying to test here:
@@ -154,7 +162,7 @@ module Resque
 
       def setup_watcher_thread
         @threads << Thread.new do
-          Thread.current.abort_on_exception = config[:abort_on_exception]
+          Thread.current.abort_on_exception = abort_on_exception
           logger.info("Starting watcher thread")
           while @running
             mutex = Redis::Mutex.new('resque_stuck_queue_lock', block: 0)
