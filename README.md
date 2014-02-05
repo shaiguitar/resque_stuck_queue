@@ -12,6 +12,12 @@ It will also fire a proc to notify you when it's recovered.
 
 ## How it works
 
+It's a heartbeat mechanism:
+
+![meme](http://cdn.memegenerator.net/instances/500x/43575729.jpg)
+
+Ok, seriously:
+
 When you call `start` you are essentially starting two threads that will continiously run until `stop` is called or until the process shuts down.
 
 One thread is responsible for pushing a 'heartbeat' job to resque which will essentially refresh a specific key in redis every time that job is processed.
@@ -37,20 +43,20 @@ require 'logger'
 # change to decent values that make sense for you
 Resque::StuckQueue.config[:heartbeat_interval]       = 10.seconds
 Resque::StuckQueue.config[:watcher_interval]         = 1.seconds
-Resque::StuckQueue.config[:trigger_timeout]          = 30.seconds
+Resque::StuckQueue.config[:trigger_timeout]          = 30.seconds # acceptable lagtime
 
 # which queues to monitor
 Resque::StuckQueue.config[:queues]                   = [:app, :custom_queue]
 
 # handler for when a resque queue is being problematic
 Resque::StuckQueue.config[:triggered_handler]         = proc { |bad_queue, lagtime|
-  msg = "[BAD] AWSM #{Rails.env}'s Resque #{bad_queue} queue lagging job execution by #{lagtime} seconds."
+  msg = "[BAD] APPNAME #{Rails.env}'s Resque #{bad_queue} queue lagging job execution by #{lagtime} seconds."
   send_email(msg)
 }
 
 # handler for when a resque queue recovers
 Resque::StuckQueue.config[:recovered_handler]         = proc { |good_queue, lagtime|
-  msg = "[GOOD] AWSM #{Rails.env}'s Resque #{good_queue} queue lagging job execution by #{lagtime} seconds."
+  msg = "[GOOD] APPNAME #{Rails.env}'s Resque #{good_queue} queue lagging job execution by #{lagtime} seconds."
   send_email(msg)
 }
 
