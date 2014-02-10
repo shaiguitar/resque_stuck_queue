@@ -2,3 +2,5 @@
 
 rm redis locking (since it works by keys now, no need for it, recover/trigger ping pong).
 rm require resque?
+
+instead of trigggering once, and recovering once, trigger X (3?) times unless it's recovered already
