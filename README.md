@@ -30,6 +30,8 @@ After firing the proc, it will continue to monitor the queue, but won't call the
 
 By calling the recovered proc, it will then complain again the next time the lag is found.
 
+You can also configure it to periodically trigger unless of couse it's recovered/good again (see the `:warn_interval` below).
+
 ## Usage
 
 Run this as a daemon somewhere alongside the app/in your setup. You'll need to configure it to your needs first:
@@ -44,6 +46,7 @@ require 'logger'
 Resque::StuckQueue.config[:heartbeat_interval]       = 10.seconds
 Resque::StuckQueue.config[:watcher_interval]         = 1.seconds
 Resque::StuckQueue.config[:trigger_timeout]          = 30.seconds # acceptable lagtime
+Resque::StuckQueue.config[:warn_interval]            = 5.minutes  # keep on triggering periodically, default is only one trigger
 
 # which queues to monitor
 Resque::StuckQueue.config[:queues]                   = [:app, :custom_queue]
@@ -101,7 +104,6 @@ $ bundle exec rake --trace resque:stuck_queue # outdated god config - https://gi
 Configuration settings are below. You'll most likely at the least want to tune `:triggered_handler`,`:heartbeat_interval` and `:trigger_timeout` settings.
 
 <pre>
-
 triggered_handler:
 	set to what gets triggered when resque-stuck-queue will detect the latest heartbeat is older than the trigger_timeout time setting.
 	Example:
@@ -127,6 +129,9 @@ trigger_timeout:
 	Example:
 	Resque::StuckQueue.config[:trigger_timeout] = 9.minutes
 
+warn_interval:
+	optional: if set, it will continiously trigger/warn in spaces of this interval after first trigger. eg, as long as lagtime keeps on being above trigger_timeout/recover hasn't occured yet.
+
 redis:
 	set the Redis StuckQueue will use. Either a Redis or Redis::Namespace instance.
 
@@ -150,7 +155,6 @@ heartbeat_job:
 
 enable_signals:
 	optional, allow resque::stuck's signal_handlers which do mostly nothing at this point. possible future plan: log info, reopen log file, etc.
-
 </pre>
 
 To start it:
