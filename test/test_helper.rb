@@ -31,10 +31,17 @@ module TestHelper
   end
 
   def start_and_stop_loops_after(secs)
+    abort_or_not = Thread.abort_on_exception
+    Thread.abort_on_exception = Resque::StuckQueue.config[:abort_on_exception]
+
     ops = []
     ops << Thread.new { Resque::StuckQueue.start }
     ops << Thread.new { sleep secs; Resque::StuckQueue.stop }
     ops.map(&:join)
+
+  ensure
+    Thread.abort_on_exception = abort_or_not
+    Resque::StuckQueue.force_stop!
   end
 
 end

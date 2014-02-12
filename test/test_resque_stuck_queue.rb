@@ -41,14 +41,17 @@ class TestResqueStuckQueue < Minitest::Test
   def test_stops_if_handler_raises
     puts "#{__method__}"
     Resque::StuckQueue.config[:trigger_timeout] = 1 # wait a short time, will trigger
+    Resque::StuckQueue.config[:abort_on_exception] = true # bubble up the raise
     last_time_too_old = Time.now.to_i - Resque::StuckQueue::TRIGGER_TIMEOUT
     Resque::StuckQueue.config[:triggered_handler] = proc { raise "handler had bad sad!" }
-    Thread.new {
-      sleep 3 # should have triggered
-      Thread.current.abort_on_exception = true
-      assert Resque::StuckQueue.stopped?, "should stop stuck_queue if handler raises."
-    }
-    start_and_stop_loops_after(4)
+    begin
+      start_and_stop_loops_after(4)
+      sleep 4
+      assert false, "should raise"
+    rescue => e
+      puts e.inspect
+      assert true, "should raise handler bad sad #{e.inspect}"
+    end
   end
 
 end
