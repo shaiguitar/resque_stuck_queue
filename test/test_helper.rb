@@ -26,7 +26,7 @@ module TestHelper
 
   def hax_kill_resque
     # ugly, FIXME how to get pid of forked forked process. run_resque pid is incorrect.
-   `ps aux |grep resque | grep -v stuck_queue |awk '{print $2}' |xargs kill`
+   `ps aux |grep -E 'resque.*(Waiting|Forked|Processing)'| grep -v grep | awk '{print $2}' |xargs kill`
    sleep 2 # wait for shutdown
   end
 

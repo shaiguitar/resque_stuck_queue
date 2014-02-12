@@ -90,6 +90,8 @@ module Resque
         setup_heartbeat_thread
         setup_watcher_thread
 
+        setup_warn_thread
+
         # fo-eva.
         @threads.map(&:join)
 
@@ -158,41 +160,19 @@ module Resque
 
       private
 
+      def log_starting_thread(type)
+        interval_keyname = "#{type}_interval".to_sym
+        logger.info("Starting #{type} thread with interval of #{config[interval_keyname]} seconds")
+      end
+
       def read_from_redis(keyname)
         redis.get(keyname)
-      end
-
-      def setup_heartbeat_thread
-        @threads << Thread.new do
-          Thread.current.abort_on_exception = abort_on_exception
-          logger.info("Starting heartbeat thread")
-          while @running
-            # we want to go through resque jobs, because that's what we're trying to test here:
-            # ensure that jobs get executed and the time is updated!
-            logger.info("Sending heartbeat jobs")
-            enqueue_jobs
-            wait_for_it(:heartbeat_interval)
-          end
-        end
-      end
-
-      def enqueue_jobs
-        if config[:heartbeat_job]
-          # FIXME config[:heartbeat_job] with mutliple queues is bad semantics
-          config[:heartbeat_job].call
-        else
-          queues.each do |queue_name|
-            # Redis::Namespace.new support as well as Redis.new
-            namespace = redis.respond_to?(:namespace) ? redis.namespace : nil
-            Resque.enqueue_to(queue_name, HeartbeatJob, heartbeat_key_for(queue_name), redis.client.host, redis.client.port, namespace, Time.now.to_i )
-          end
-        end
       end
 
       def setup_watcher_thread
         @threads << Thread.new do
           Thread.current.abort_on_exception = abort_on_exception
-          logger.info("Starting watcher thread")
+          log_starting_thread(:watcher)
           while @running
             mutex = Redis::Mutex.new('resque_stuck_queue_lock', block: 0)
             if mutex.lock
@@ -210,6 +190,49 @@ module Resque
               end
             end
             wait_for_it(:watcher_interval)
+          end
+        end
+      end
+
+      def setup_heartbeat_thread
+        @threads << Thread.new do
+          Thread.current.abort_on_exception = abort_on_exception
+          log_starting_thread(:heartbeat)
+          while @running
+            # we want to go through resque jobs, because that's what we're trying to test here:
+            # ensure that jobs get executed and the time is updated!
+            wait_for_it(:heartbeat_interval)
+            logger.info("Sending heartbeat jobs")
+            enqueue_jobs
+          end
+        end
+      end
+
+      def setup_warn_thread
+        if config[:warn_interval]
+          @threads << Thread.new do
+            Thread.current.abort_on_exception = abort_on_exception
+            log_starting_thread(:warn)
+            while @running
+              queues.each do |qn|
+                trigger_handler(qn, :triggered) if should_trigger?(qn, true)
+              end
+              wait_for_it(:warn_interval)
+            end
+          end
+        end
+      end
+
+
+      def enqueue_jobs
+        if config[:heartbeat_job]
+          # FIXME config[:heartbeat_job] with mutliple queues is bad semantics
+          config[:heartbeat_job].call
+        else
+          queues.each do |queue_name|
+            # Redis::Namespace.new support as well as Redis.new
+            namespace = redis.respond_to?(:namespace) ? redis.namespace : nil
+            Resque.enqueue_to(queue_name, HeartbeatJob, heartbeat_key_for(queue_name), redis.client.host, redis.client.port, namespace, Time.now.to_i )
           end
         end
       end
@@ -255,17 +278,22 @@ module Resque
           lag_time(queue_name) < max_wait_time
       end
 
-      def should_trigger?(queue_name)
+      def should_trigger?(queue_name, force_trigger = false)
         if lag_time(queue_name) >= max_wait_time
           last_trigger = last_triggered(queue_name)
 
-          if last_trigger.nil?
+          if force_trigger
             return true
-          else
-            # if it already triggered in the past and needs to re-trigger,
-            # :recovered should have cleared last_triggered out by then
-            return false
           end
+
+          if last_trigger.nil?
+            # if it hasn't been triggered before, do it
+            return true
+          end
+
+          # if it already triggered in the past don't trigger again.
+          # :recovered should clearn out last_triggered so the cycle (trigger<->recover) continues
+          return false
         end
       end
 
@@ -274,8 +302,10 @@ module Resque
           sleep config[:heartbeat_interval] || HEARTBEAT_INTERVAL
         elsif type == :watcher_interval
           sleep config[:watcher_interval]   || WATCHER_INTERVAL
+        elsif type == :warn_interval
+          sleep config[:warn_interval]
         else
-          raise 'Must sleep for :watcher_interval interval or :heartbeat_interval interval!'
+          raise 'Must sleep for :watcher_interval interval or :heartbeat_interval or :warn_interval interval!'
         end
       end
 

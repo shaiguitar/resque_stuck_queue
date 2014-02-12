@@ -3,5 +3,5 @@
 rm redis locking (since it works by keys now, no need for it, recover/trigger ping pong).
 rm require resque?
 
-instead of trigggering once
-  add :warn_interval which will just continiously trigger for that interval until a recover hits.
+refactor tests to have an around(:suite) to run with resque beforehand (no startup time) and just run test_integration.rb 
+  (& compact dup tests etc)

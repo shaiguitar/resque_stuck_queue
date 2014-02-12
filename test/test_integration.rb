@@ -69,6 +69,67 @@ class TestIntegration < Minitest::Test
     end
   end
 
+  # warn_interval #0
+  def test_resque_does_not_enqueues_a_job_does_trigger_once_with_no_warn_interval
+  puts "#{__method__}"
+
+    with_no_resque_failures do
+      Resque::StuckQueue.config[:heartbeat_interval] = 5 # so heartbeats don't go through at all in this timeframe
+      Resque::StuckQueue.config[:trigger_timeout] = 2
+      Resque::StuckQueue.config[:watcher_interval] = 1
+      Resque::StuckQueue.config[:warn_interval] = nil
+      Resque::StuckQueue.config[:redis] = Redis.new
+      Resque::StuckQueue.config[:triggered_handler] = proc { Resque::StuckQueue.redis.incr("test_incr_warn") }
+
+      start_and_stop_loops_after(5)
+      # check handler did get called once as there is no warn_interval
+      assert_equal Resque::StuckQueue.redis.get("test_incr_warn").to_i, 1
+    end
+  end
+
+
+  # warn_interval #1
+  def test_resque_does_not_enqueues_a_job_does_trigger_with_warn_interval
+  puts "#{__method__}"
+
+    with_no_resque_failures do
+      Resque::StuckQueue.config[:heartbeat_interval] = 5 # so heartbeats don't go through at all in this timeframe
+      Resque::StuckQueue.config[:trigger_timeout] = 2
+      Resque::StuckQueue.config[:watcher_interval] = 1
+      Resque::StuckQueue.config[:warn_interval] = 1
+      Resque::StuckQueue.config[:redis] = Redis.new
+      Resque::StuckQueue.config[:triggered_handler] = proc { Resque::StuckQueue.redis.incr("test_incr_warn") }
+
+      start_and_stop_loops_after(5)
+      # check handler did get called multiple times due to warn_interval
+      assert_equal Resque::StuckQueue.redis.get("test_incr_warn").to_i, 3
+    end
+  end
+
+  # warn_interval #2
+  def test_resque_does_not_enqueues_a_job_does_trigger_with_warn_interval_stops_on_recover
+  puts "#{__method__}"
+
+    with_no_resque_failures do
+      Resque::StuckQueue.config[:heartbeat_interval] = 2 # so we trigger, and recover in this timeframe
+      Resque::StuckQueue.config[:trigger_timeout] = 2
+      Resque::StuckQueue.config[:watcher_interval] = 1
+      Resque::StuckQueue.config[:warn_interval] = 1
+      Resque::StuckQueue.config[:redis] = Redis.new
+      Resque::StuckQueue.config[:triggered_handler] = proc { Resque::StuckQueue.redis.incr("test_incr_warn") }
+
+      @recovered = false
+      Resque::StuckQueue.config[:recovered_handler] = proc { @recovered = true }
+
+      start_and_stop_loops_after(5)
+
+      assert @recovered, "resque should have picked up heartbeat job after 2 seconds"
+
+      # check handler did get called multiple times due to warn_interval but less than previous test because recover
+      assert_equal Resque::StuckQueue.redis.get("test_incr_warn").to_i, 2
+    end
+  end
+
   def test_resque_does_not_enqueues_a_job_does_trigger
     puts "#{__method__}"
 
