@@ -77,8 +77,6 @@ module Resque
         config.validate_required_keys!
         config.freeze
 
-        Signals.enable!
-
         log_starting_info
 
         reset_keys
