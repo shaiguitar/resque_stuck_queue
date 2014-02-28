@@ -224,15 +224,23 @@ module Resque
 
       def enqueue_jobs
         if config[:heartbeat_job]
-          # FIXME config[:heartbeat_job] with mutliple queues is bad semantics
+          # FIXME  config[:heartbeat_job] with mutliple queues is bad semantics
+          # just rm this functionality :heartbeat_job
           config[:heartbeat_job].call
         else
           queues.each do |queue_name|
-            # Redis::Namespace.new support as well as Redis.new
-            namespace = redis.respond_to?(:namespace) ? redis.namespace : nil
-            Resque.enqueue_to(queue_name, HeartbeatJob, heartbeat_key_for(queue_name), redis.client.host, redis.client.port, namespace, Time.now.to_i )
+            if queue_is_ok?(queue_name)
+              enqueue_job_for_queue(queue_name)
+            end
           end
         end
+      end
+
+      def enqueue_job_for_queue(queue_name)
+        # Redis::Namespace.new support as well as Redis.new
+        namespace = redis.respond_to?(:namespace) ? redis.namespace : nil
+        Resque.enqueue_to(queue_name, HeartbeatJob, heartbeat_key_for(queue_name),
+                          redis.client.host, redis.client.port, namespace, Time.now.to_i )
       end
 
       def last_successful_heartbeat(queue_name)
@@ -242,7 +250,7 @@ module Resque
         else
           logger.info("manually refreshing #{queue_name} for :first_time")
           manual_refresh(queue_name, :first_time)
-         end.to_i
+        end.to_i
       end
 
       def manual_refresh(queue_name, type)
@@ -271,13 +279,20 @@ module Resque
         end
       end
 
+      def queue_lagging?(queue_name)
+        lag_time(queue_name) >= max_wait_time
+      end
+
+      def queue_is_ok?(queue_name)
+        !queue_lagging?(queue_name)
+      end
+
       def should_recover?(queue_name)
-        last_triggered(queue_name) &&
-          lag_time(queue_name) < max_wait_time
+        last_triggered(queue_name) && queue_is_ok?(queue_name)
       end
 
       def should_trigger?(queue_name, force_trigger = false)
-        if lag_time(queue_name) >= max_wait_time
+        if queue_lagging?(queue_name)
           last_trigger = last_triggered(queue_name)
 
           if force_trigger

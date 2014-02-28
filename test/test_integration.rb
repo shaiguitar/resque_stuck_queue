@@ -53,6 +53,22 @@ class TestIntegration < Minitest::Test
     end
   end
 
+  def test_resque_does_not_enqueue_if_queue_is_bad
+    puts "#{__method__}"
+
+    with_no_resque_failures do
+      Resque::StuckQueue.config[:trigger_timeout] = 1 # force queue to be 'bad' after 1
+      Resque::StuckQueue.config[:heartbeat_interval] = 1 # send one heartbeat
+      Resque::StuckQueue.config[:redis] = Redis.new
+
+      # so Resque.info[:processed] is clean
+      Resque::StuckQueue.redis.flushall
+
+      start_and_stop_loops_after(3)
+      assert_equal Resque.info[:processed], 1 # otherwise would have been 3
+    end
+  end
+
   def test_resque_enqueues_a_job_does_not_trigger
     puts "#{__method__}"
 
