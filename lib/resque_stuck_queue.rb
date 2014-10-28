@@ -1,7 +1,6 @@
 require "resque_stuck_queue/version"
 require "resque_stuck_queue/config"
 require "resque_stuck_queue/heartbeat_job"
-require "resque_stuck_queue/signals"
 
 require 'redis-namespace'
 
