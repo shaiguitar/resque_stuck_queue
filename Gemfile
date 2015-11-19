@@ -10,6 +10,7 @@ else
 end
 
 gem 'redis-mutex'
+gem 'redis-classy'
 
 # TEST
 gem 'minitest'
