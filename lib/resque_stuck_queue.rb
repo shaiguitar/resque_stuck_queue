@@ -80,7 +80,7 @@ module Resque
 
         reset_keys
 
-        Redis::Classy.db = redis if Redis::Classy.db.nil?
+        RedisClassy.redis = redis if RedisClassy.redis.nil?
 
         pretty_process_name
 
@@ -171,7 +171,7 @@ module Resque
           Thread.current.abort_on_exception = abort_on_exception
           log_starting_thread(:watcher)
           while @running
-            mutex = Redis::Mutex.new('resque_stuck_queue_lock', block: 0)
+            mutex = RedisMutex.new(:resque_stuck_queue, :block => 0)
             if mutex.lock
               begin
                 queues.each do |queue_name|
