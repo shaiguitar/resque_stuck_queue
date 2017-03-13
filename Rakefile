@@ -21,6 +21,7 @@ task :'resque:setup' do
   Dir["./lib/resque_stuck_queue.rb"].each {|file| require file}
 end
 
-require 'resque_scheduler/tasks'
+require 'resque/scheduler/tasks'
+
 task "resque:scheduler_setup"
 
